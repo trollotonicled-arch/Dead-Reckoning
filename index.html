@@ -51,11 +51,12 @@ details.set summary b{color:var(--amber);font-weight:600}
 #mpList{list-style:none;padding:0;margin:0 0 12px}#mpList li{padding:6px 0;border-bottom:1px solid rgba(217,210,194,.14)}
 #tut{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 74px);width:min(600px,calc(100% - 32px));background:rgba(7,9,11,.88);border:1.5px solid rgba(217,210,194,.3);border-left:4px solid var(--amber);border-radius:3px;padding:10px 14px 12px;color:var(--bone);font:500 17px/1.4 var(--hud);pointer-events:none;transition:opacity .15s}
 #tut.dim{opacity:.12}
+.guestonly{display:none}#tutEnd.guest .guestonly{display:block}#tutEnd.guest #bPractice,#tutEnd.guest #bPractice+p,#tutEnd.guest #bTutAgain{display:none}
 #tut p{margin:0;max-width:none}
 #tutBar{height:3px;background:rgba(217,210,194,.16);margin:0 0 8px}#tutFill{display:block;height:100%;width:0;background:var(--amber)}
 #tutSub{color:var(--amber);font-size:15px;padding-top:6px}#tutSub:empty{display:none}
 #tut button{pointer-events:auto;width:auto;min-height:44px;margin:10px 0 0;padding:6px 18px;font-size:17px}
-#tut button.quiet{padding-left:0;font-size:15px;min-height:36px;margin-top:4px}
+#tut button.quiet{padding-left:0;font-size:15px;min-height:36px;margin-top:4px}#tutNext:not(.hidden)+#tutSkip{margin-left:16px}
 @media(max-height:520px){#tut{left:max(10px,env(safe-area-inset-left,0px));transform:none;top:calc(env(safe-area-inset-top,0px) + 8px);width:calc(50% - 64px);font-size:13.5px;padding:7px 10px 8px}#tutSub{font-size:13px}#tut button{min-height:34px;margin-top:4px;font-size:14px}}
 .tips{margin:0 0 18px;padding-left:1.1em;color:#c9c3b4;font-size:17px}.tips li{margin-bottom:.55em}
 button.quiet{border-color:transparent;color:var(--mute);font-weight:500;padding-left:0}
@@ -140,6 +141,7 @@ canvas.fig{width:100%;display:block;background:rgba(0,0,0,.25);margin:0 0 6px}
     <p class="note" id="mpQRNote"></p>
     <label class="fld" id="mpLinkFld">Public link to this game<input id="mpLink" inputmode="url" autocomplete="off" placeholder="https://"></label>
     <button id="mpStart" class="go">Start the trial with everyone here</button>
+    <button id="mpTrain">Start training with everyone here</button>
     <button id="mpClose">Close the room</button>
   </div>
   <div id="mpJoinBox" class="hidden">
@@ -167,6 +169,7 @@ canvas.fig{width:100%;display:block;background:rgba(0,0,0,.25);margin:0 0 6px}
     <li>The hunter remembers the routes you take. If you always run to the same corner, pick another.</li>
   </ul>
   <button id="bTutAgain">Run the training again</button>
+  <p class="note guestonly">Stay on this screen. The next trial starts when the host starts it.</p>
   <button id="bTutMenu">Back to the menu</button>
 </div></div>
 
@@ -567,8 +570,8 @@ function decLibs(arr, libs) { if (!arr || arr.length !== 3) return false; arr.fo
    MATCH STATE
    ===================================================================== */
 let G = null;
-const INPUT = { jx: 0, jy: 0, crouch: false, act: false, ab: false };
-const CAST = [{ name: 'You', col: '#d7b45a' }, { name: 'Mara', col: '#6f9dbd' }, { name: 'Jonah', col: '#86a866' }, { name: 'Tess', col: '#b97a96' }, { name: 'Idris', col: '#c98a5a' }, { name: 'Noor', col: '#8f86c4' }, { name: 'Wren', col: '#5fae9f' }, { name: 'Cole', col: '#b0a48a' }];
+const INPUT = { jx: 0, jy: 0, crouch: false, act: false, ab: false, next: false };
+const CAST = [{ name: 'You', col: '#d7b45a' }, { name: 'Mara', col: '#6f9dbd' }, { name: 'Jonah', col: '#86a866' }, { name: 'Tess', col: '#b97a96' }, { name: 'Idris', col: '#c98a5a' }, { name: 'Noor', col: '#8f86c4' }, { name: 'Wren', col: '#5fae9f' }, { name: 'Cole', col: '#b0a48a' }, { name: 'Mara', col: '#9fb4c4' }];
 function kNear(x, y) { let d = 1e9; for (const k of G.Ks) d = Math.min(d, hyp(k.x - x, k.y - y)); return d; }                 // distance to the nearest hunter
 function nearK(x, y) { let b = G.Ks[0], d = 1e9; for (const k of G.Ks) { const q = hyp(k.x - x, k.y - y); if (q < d) { d = q; b = k; } } return b; }
 const ev = (type, o) => { if (G.events.length < 64) G.events.push(Object.assign({ type, t: G.t }, o || {})); };
@@ -585,7 +588,7 @@ function newMatch(opt) {
   G.K = { x: kx, y: ky, r: 0.55, vx: 0, vy: 0, face: rnd(TAU), st: 'free', tmr: 0, carry: null, goal: null, path: null, pi: 0, think: 0, F: newField(), sees: [false, false, false, false], seenT: [-99, -99, -99, -99], chase: null, lt: null, vault: null, scan: 1, knowsHatch: false, pc: -1, ph: 8, pctx: 0, stuckT: 0, lx: kx, ly: ky, bl: 0 };
   const ht = (opt.hunter >= 0 && opt.hunter < HUNTERS.length) ? opt.hunter : (Math.random() * HUNTERS.length) | 0;
   Object.assign(G.K, { type: HUNTERS[ht], tr: HUNTERS[ht].tr, cloak: false, chargeCd: 5, surge: 0, cdir: 0, unseenT: 0 });
-  const nH = clamp((opt.hunters | 0) || 1, 1, 3), nS = clamp(Math.max((opt.survivors | 0) || 4, opt.players ? opt.players.length : 1), 2, 8);
+  const nH = clamp((opt.hunters | 0) || 1, 1, 3), nS = clamp(Math.max((opt.survivors | 0) || 4, opt.players ? opt.players.length : 1), 2, opt.tut ? 9 : 8);
   GEN_CHARGES = MAP.obj.charges * (0.5 + 0.5 * nS / 4) * Math.pow(0.8, nH - 1);                 // more hands, more work per objective
   G.sees = new Array(nS).fill(false); G.seenT = new Array(nS).fill(-99); G.K.sees = G.sees; G.K.seenT = G.seenT; G.K.idx = 0; G.Ks = [G.K];   // hunters share one pair of eyes
   for (let j = 1; j < nH; j++) {
@@ -1100,28 +1103,33 @@ function finishMatch() {
 }
 
 /* =====================================================================
-   THE TRAINING GROUND — a scripted walk through every basic, on its own small map.
-   Each lesson has words, an optional marker to walk to and a test for "done";
-   `fix` puts the world right when a lesson is skipped. The hunter here is a
-   slowed-down Warden that is only switched on for the chase lessons, and the
-   teammate is a puppet that goes where the script sends her.
+   THE TRAINING GROUND — a scripted walk through every basic, on its own small map,
+   for one learner or a whole room of them. Each lesson has words, a marker to walk
+   to, and a test for "done": `each` is something every learner has to do themselves,
+   `done` is something the group does once. `fix` puts the world right when a lesson
+   is skipped. The hunter is a slowed-down Warden that is only switched on for the
+   chase lessons, and Mara is a puppet that goes where the script sends her.
    ===================================================================== */
 const TUT_AT = (lx, ly) => ({ x: 2 * lx + 3, y: 2 * ly + 3, n: (ly + 1) * MW + lx + 1 });
 const TUT_SPOTS = [[3, 15], [12, 15], [22, 15], [22, 0], [1, 0], [0, 15], [23, 10], [12, 0]];
+const TUT_START = [[2, 7], [2, 6], [2, 8], [3, 7], [3, 6], [3, 8], [1, 6], [1, 8]];
 const TL1 = () => Object.assign(TUT_AT(6, 7), { lamp: 1 }), TL2 = () => Object.assign(TUT_AT(13, 12), { lamp: 1 }), TL3 = () => Object.assign(TUT_AT(10, 13), { lamp: 1 });
 const near2 = (a, b, r) => hyp(a.x - b.x, a.y - b.y) < r;
-function tutNote(s) { const t = G.tut; t.note = s; t.noteT = G.t + 7; }
+const tutPS = () => ({ ran: 0, cr: 0, f: {}, ok: false, ack: false, hurt: false, sub: '', note: '', noteT: 0, target: null });
+function tutNote(ps, s) { ps.note = s; ps.noteT = G.t + 7; }
+const tutNoteAll = (t, hs, s) => { for (const h of hs) tutNote(t.pl[h.id], s); };
 function tutHunterGone(k) { if (k.carry) stunKiller(0.1, k); Object.assign(k, { dead: true, off: false, st: 'dead', goal: null, chase: null, path: null, x: -1000, y: -1000 }); G.SB.trs[k.idx].pin(-1000, -1000, 0, 0); G.SB.seenK[k.idx] = true; G.sees.fill(false); }
 function tutHunterAt(k, at, p) {
   Object.assign(k, { dead: false, off: false, st: 'free', tmr: 0, goal: null, chase: null, path: null, carry: null, vault: null, x: at.x, y: at.y, lx: at.x, ly: at.y, vx: 0, vy: 0, bl: 0, think: 0, face: Math.atan2(p.y - at.y, p.x - at.x) });
   const tr = G.SB.trs[k.idx]; tr.pinned = null; tr.lost(0, 0, null); tr.estimate(); G.SB.seenK[k.idx] = false;
 }
-function tutSpawn(p) {                                                   // somewhere about 26 m from the player and out of sight: close enough for a slow heartbeat
+function tutSpawn(hs) {                                                  // somewhere about 26 m from the nearest learner and out of everyone's sight: close enough for a slow heartbeat
   let best = null, bs = 1e9;
-  for (const [lx, ly] of TUT_SPOTS) { const a = TUT_AT(lx, ly), d = hyp(a.x - p.x, a.y - p.y), sc = Math.abs(d - 26) + (los(a.x, a.y, p.x, p.y) ? 12 : 0) + (d > 31 ? 30 : 0) + (d < 16 ? 30 : 0); if (sc < bs) { bs = sc; best = a; } }
+  for (const [lx, ly] of TUT_SPOTS) { const a = TUT_AT(lx, ly); let d = 1e9, seen = false; for (const p of hs) { if (p.state !== 'free') continue; d = Math.min(d, hyp(a.x - p.x, a.y - p.y)); if (los(a.x, a.y, p.x, p.y)) seen = true; } const sc = Math.abs(d - 26) + (seen ? 12 : 0) + (d > 31 ? 30 : 0) + (d < 16 ? 30 : 0); if (sc < bs) { bs = sc; best = a; } }
   return best;
 }
-function tutHound(t, p, m, k, dt) { t.f.pin = (t.f.pin || 0) - dt; if (t.f.pin <= 0) { t.f.pin = 1.5; if (!k.dead && !G.sees[0] && p.state === 'free') G.HB.tr[0].pin(p.x, p.y, p.vx, p.vy); } }   // during the chase lessons it always has a rough idea where you are
+const tutWake = (t, hs, m, k) => { if (k.dead) tutHunterAt(k, tutSpawn(hs), hs[0]); k.off = false; };
+function tutHound(t, hs, m, k, dt) { t.f.pin = (t.f.pin || 0) - dt; if (t.f.pin > 0 || k.dead) return; t.f.pin = 1.5; for (const p of hs) if (!G.sees[p.id] && p.state === 'free') G.HB.tr[p.id].pin(p.x, p.y, p.vx, p.vy); }   // during the chase lessons it always has a rough idea where everyone is
 function tutWalk(s, at, then) { s.pgoal = { x: at.x, y: at.y, n: at.n, then }; s.path = null; }
 function puppetAct(s) {
   s.ix = s.iy = 0; const g = s.pgoal; if (!g || s.state !== 'free' || s.vault) return;
@@ -1132,78 +1140,95 @@ function puppetAct(s) {
   const d = hyp(w.x - s.x, w.y - s.y); if (d > 0.02) { s.ix = (w.x - s.x) / d; s.iy = (w.y - s.y) / d; s.run = true; s.crouch = false; }
 }
 const TUT = [
-  { id: 'move', text: '[move] Walk to the lantern.', target: () => TL1(), done: (t, p) => near2(p, TL1(), 1.7) },
+  { id: 'move', text: '[move] Walk to the lantern.', target: () => TL1(), each: (t, s) => near2(s, TL1(), 1.8) },
   { id: 'run', text: '[run] Running is fast, but it leaves red scratch marks that a hunter can follow for a few seconds. Run to the next lantern.',
-    target: t => t.f.back ? TL1() : TL2(),
-    done: (t, p) => { if (!near2(p, t.f.back ? TL1() : TL2(), 1.7)) return false; if (t.ran >= 5) return true; t.f.back = !t.f.back; t.ran = 0; t.sub = 'That was a walk. Now run to the other lantern.'; return false; } },
+    target: (t, s, ps) => ps.f.back ? TL1() : TL2(),
+    each: (t, s, ps) => { if (!near2(s, ps.f.back ? TL1() : TL2(), 1.8)) return false; if (ps.ran >= 5) return true; ps.f.back = !ps.f.back; ps.ran = 0; ps.sub = 'That was a walk. Now run to the other lantern.'; return false; } },
   { id: 'crouch', hl: 'cr', text: '[crouch] Crouching is slow, but it leaves no marks and a hunter only spots you from close up. Stay crouched and go to the next lantern.',
-    target: t => t.f.back ? TL2() : TL3(),
-    done: (t, p) => { if (!near2(p, t.f.back ? TL2() : TL3(), 1.7)) return false; if (t.cr >= 3) return true; t.f.back = !t.f.back; t.cr = 0; t.sub = 'You were standing. Crouch first, then go to the other lantern.'; return false; },
-    fix: () => { INPUT.crouch = false; } },
+    target: (t, s, ps) => ps.f.back ? TL2() : TL3(),
+    each: (t, s, ps) => { if (!near2(s, ps.f.back ? TL2() : TL3(), 1.8)) return false; if (ps.cr >= 3) return true; ps.f.back = !ps.f.back; ps.cr = 0; ps.sub = 'You were standing. Crouch first, then go to the other lantern.'; return false; },
+    fix: (t, hs) => { for (const s of hs) if (s.inp) s.inp.crouch = false; } },
   { id: 'repair', hl: 'act', text: 'This is a generator. Stand next to it and [act1 Repair]. Then keep still, because moving stops the repair.',
-    enter: (t, p) => { p.scNext = 99; }, target: (t, p) => p.action ? null : gens[0],
-    done: (t, p, m, k, dt) => { t.f.rep = (p.action && p.action.type === 'repair') ? (t.f.rep || 0) + dt : 0; return t.f.rep > 1.2 || gens[0].done; } },
+    textN: 'This is a generator. Stand next to it and [act1 Repair]. Then keep still, because moving stops the repair. Four can work on it at once, so take turns if there are more of you.',
+    enter: (t, hs) => { for (const s of hs) s.scNext = 99; }, target: (t, s) => s.action ? null : gens[0],
+    each: (t, s, ps, m, k, dt) => { ps.f.rep = (s.action && s.action.type === 'repair') ? (ps.f.rep || 0) + dt : 0; return ps.f.rep > 1.2 || gens[0].done; } },
   { id: 'skill', hl: 'act', text: 'A ring is about to appear. [sc] while the red needle is inside the marked zone; the bright leading edge is worth a bonus. Miss and the generator bangs, which tells a hunter where you are. Finish the generator.',
-    enter: (t, p) => { p.scNext = 1.2; }, target: (t, p) => p.action ? null : gens[0], done: () => gens[0].done, fix: () => { if (!gens[0].done) completeGen(gens[0]); } },
+    enter: (t, hs) => { for (const s of hs) s.scNext = 1.2; }, target: (t, s) => s.action ? null : gens[0], done: () => gens[0].done, fix: () => { if (!gens[0].done) completeGen(gens[0]); } },
   { id: 'heart', next: true, text: 'Hear the heartbeat? A hunter is within 32 metres. It beats faster as the hunter closes in, and the edge of the screen pulses red. This one has not noticed you yet.',
-    enter: (t, p, m, k) => { tutHunterAt(k, tutSpawn(p), p); k.off = true; } },
+    enter: (t, hs, m, k) => { tutHunterAt(k, tutSpawn(hs), hs[0]); k.off = true; } },
   { id: 'guess', next: true, hl: 'eye', text: 'Two guesses to watch. The eye at the top is the hunter\'s guess about you: the wider it opens, the surer it is. The red arc around you is your team\'s guess about the hunter: it points towards it and narrows as the guess sharpens.',
-    enter: (t, p, m, k) => { if (k.dead) { tutHunterAt(k, tutSpawn(p), p); k.off = true; } } },
+    enter: (t, hs, m, k) => { if (k.dead) { tutHunterAt(k, tutSpawn(hs), hs[0]); k.off = true; } } },
   { id: 'window', text: 'It has found you. The red glow in front of a hunter shows which way it is facing. Run to the window in the wall and [act Vault]. You are quick over a window and the hunter is slow.',
-    enter: (t, p, m, k) => { if (k.dead) tutHunterAt(k, tutSpawn(p), p); k.off = false; k.think = 0; }, target: () => windows[0], tick: tutHound,
-    done: (t, p) => { if (p.vault && p.vault.win) t.f.v = true; return !!t.f.v && !p.vault; } },
+    enter: (t, hs, m, k) => { tutWake(t, hs, m, k); k.think = 0; }, target: () => windows[0], tick: tutHound,
+    each: (t, s, ps) => { if (s.vault && s.vault.win) ps.f.v = true; return !!ps.f.v && !s.vault; } },
   { id: 'pallet', text: 'Now the pallet: the wooden board standing in the gap. Run through the gap, then [act Drop pallet] with the hunter close behind you. If it lands on the hunter, the hunter is stunned.',
-    enter: (t, p, m, k) => { if (k.dead) tutHunterAt(k, tutSpawn(p), p); k.off = false; }, target: () => pallets[0].state === 'up' ? pallets[0] : null, tick: tutHound,
-    done: (t, p, m, k) => { if (pallets[0].state === 'up') return false; tutNote(k.st === 'stun' ? 'Stunned. That buys you about three seconds.' : 'Dropped. Now the hunter has to break it or go the long way round.'); return true; },
+    textN: 'Now the pallet: the wooden board standing in the gap. There is only one, so one of you does this. Run through the gap, then [act Drop pallet] with the hunter close behind you. If it lands on the hunter, the hunter is stunned.',
+    enter: tutWake, target: () => pallets[0].state === 'up' ? pallets[0] : null, tick: tutHound,
+    done: (t, hs, m, k) => { if (pallets[0].state === 'up') return false; tutNoteAll(t, hs, k.st === 'stun' ? 'Stunned. That buys about three seconds.' : 'Dropped. Now the hunter has to break it or go the long way round.'); return true; },
     fix: () => { if (pallets[0].state === 'up') dropPallet(pallets[0], null); } },
   { id: 'lose', text: 'Now lose it. Get a wall between you and the hunter, then ease off: walking and crouching leave no marks to follow. Stay out of its sight for 6 seconds.',
-    enter: (t, p, m, k) => { if (k.dead) tutHunterAt(k, tutSpawn(p), p); k.off = false; t.f.lx = p.x; t.f.ly = p.y; },
-    tick: (t, p, m, k, dt) => { if (G.sees[0]) { t.f.lx = p.x; t.f.ly = p.y; } else { t.f.pin = (t.f.pin || 0) - dt; if (t.f.pin <= 0) { t.f.pin = 0.5; G.HB.tr[0].pin(t.f.lx, t.f.ly, 0, 0); } } },   // it searches the last place it saw you, as a real hunter would
-    done: (t, p) => { const u = Math.min(t.stepT, G.t - G.seenT[0]); t.sub = G.sees[0] ? 'It can see you.' : 'Out of sight for ' + Math.min(6, Math.floor(u)) + ' of 6 seconds.'; return u >= 6; },
-    fix: (t, p, m, k) => { tutHunterGone(k); tutNote('The hunter has lost you and moved on.'); } },
+    textN: 'Now lose it. Get a wall between you and the hunter, then ease off: walking and crouching leave no marks to follow. Each of you has to stay out of its sight for 6 seconds.',
+    enter: (t, hs, m, k) => { tutWake(t, hs, m, k); for (const s of hs) { const ps = t.pl[s.id]; ps.f.lx = s.x; ps.f.ly = s.y; } },
+    tick: (t, hs, m, k, dt) => { t.f.pin = (t.f.pin || 0) - dt; const go = t.f.pin <= 0; if (go) t.f.pin = 0.5; for (const s of hs) { const ps = t.pl[s.id]; if (G.sees[s.id] || ps.f.lx === undefined) { ps.f.lx = s.x; ps.f.ly = s.y; } else if (go && s.state === 'free') G.HB.tr[s.id].pin(ps.f.lx, ps.f.ly, 0, 0); } },   // it searches the last place it saw each of you, as a real hunter would
+    each: (t, s, ps) => { const u = Math.min(t.stepT, G.t - G.seenT[s.id]); ps.sub = G.sees[s.id] ? 'It can see you.' : 'Out of sight for ' + Math.min(6, Math.floor(u)) + ' of 6 seconds.'; return u >= 6; },
+    fix: (t, hs, m, k) => { tutHunterGone(k); tutNoteAll(t, hs, 'The hunter has lost you and moved on.'); } },
   { id: 'unhook', text: 'Mara, your teammate, was caught and hooked. A hooked friend shows red through walls. Being hooked costs a stage, and so does every 70 seconds left hanging; lose three and they are gone for good. Go to the hook and [act Unhook].',
-    enter: (t, p, m) => { const h = hooks[0]; Object.assign(m, { ghost: false, state: 'hooked', hook: h, x: h.x, y: h.y, stage: 1, hookT: HOOK_STAGE, tries: 3, action: null }); h.occ = m; ev('hook', { s: m, x: h.x, y: h.y }); },
-    target: () => hooks[0], done: (t, p, m) => m.state === 'free', fix: (t, p, m) => { if (m.state === 'hooked') unhook(m, p); } },
+    enter: (t, hs, m) => { const h = hooks[0]; Object.assign(m, { ghost: false, state: 'hooked', hook: h, x: h.x, y: h.y, stage: 1, hookT: HOOK_STAGE, tries: 3, action: null }); h.occ = m; ev('hook', { s: m, x: h.x, y: h.y }); },
+    target: () => hooks[0], done: (t, hs, m) => m.state === 'free', fix: (t, hs, m) => { if (m.state === 'hooked') unhook(m, hs[0]); } },
   { id: 'heal', text: 'Mara is hurt: see the red slash on her icon in the team list. An injured survivor groans, drips blood, and goes down to one more hit. Stand next to her, [act Heal] and hold still.',
-    enter: (t, p, m) => { m.health = 1; m.healP = 9; }, target: (t, p, m) => (p.action && p.action.type === 'heal') ? null : m,
-    done: (t, p, m) => m.health === 0, fix: (t, p, m) => { m.health = 0; m.healP = 0; } },
-  { id: 'healme', text: 'You are hurt too. Stand still next to Mara and let her heal you.',
-    enter: (t, p) => { if (p.health === 1) p.healP = Math.max(p.healP, 8); }, target: (t, p, m) => near2(p, m, 2.1) ? null : m,
-    tick: (t, p, m) => { if (p.health === 1 && m.state === 'free' && !m.action && near2(p, m, 2.2)) m.action = { type: 'heal', ref: p }; },
-    done: (t, p) => p.health !== 1, fix: (t, p, m) => { p.health = 0; p.healP = 0; m.action = null; } },
+    textN: 'Mara is hurt: see the red slash on her icon in the team list. An injured survivor groans, drips blood, and goes down to one more hit. Stand next to her, [act Heal] and hold still. Several healers are quicker than one.',
+    enter: (t, hs, m) => { m.health = 1; m.healP = 9; }, target: (t, s, ps, m) => (s.action && s.action.type === 'heal') ? null : m,
+    done: (t, hs, m) => m.health === 0, fix: (t, hs, m) => { m.health = 0; m.healP = 0; } },
+  { id: 'healme', text: 'You are hurt too. Stand still next to Mara and let her heal you.', textN: 'Anyone who is hurt: stand still next to Mara and let her heal you. You can also heal each other.',
+    enter: (t, hs) => { for (const s of hs) if (s.health === 1) s.healP = Math.max(s.healP, 8); }, target: (t, s, ps, m) => (s.health === 1 && !near2(s, m, 2.1)) ? m : null,
+    tick: (t, hs, m) => { if (m.state !== 'free' || m.action) return; let b = null, bd = 2.2; for (const s of hs) if (s.health === 1 && s.state === 'free') { const d = hyp(s.x - m.x, s.y - m.y); if (d < bd) { bd = d; b = s; } } if (b) m.action = { type: 'heal', ref: b }; },
+    done: (t, hs) => { let hurt = 0; for (const s of hs) if (s.health === 1 && s.state === 'free') hurt++; for (const s of hs) if (s.health !== 1) t.pl[s.id].sub = hurt ? 'You are not hurt. Waiting for the others.' : ''; return !hurt; },
+    fix: (t, hs, m) => { for (const s of hs) if (s.health === 1) { s.health = 0; s.healP = 0; } m.action = null; } },
   { id: 'coop', text: 'One generator left, and Mara is heading for it. Follow her and repair it together: two people finish much sooner than one.',
-    enter: (t, p, m) => { const g = gens[1]; field(m.F, tidx(m.x, m.y), false, 0); let b = g.slots[0]; for (const sl of g.slots) if (m.F.d[sl.n] < m.F.d[b.n]) b = sl; tutWalk(m, b, () => { t.f.at = true; }); },
-    target: (t, p) => (p.action && p.action.ref === gens[1]) ? null : gens[1],
-    tick: (t, p, m) => { const g = gens[1]; if (!t.f.at || g.done || m.state !== 'free') return; const on = p.action && p.action.type === 'repair' && p.action.ref === g; if (on || g.p < 0.5 * GEN_CHARGES) { if (!m.action) m.action = { type: 'repair', ref: g }; } else m.action = null; },   // she leaves the second half for the two of you
-    done: () => gens[1].done, fix: (t, p, m) => { if (!gens[1].done) completeGen(gens[1]); m.action = null; m.pgoal = null; } },
+    textN: 'One generator left, and Mara is heading for it. Follow her and repair it together: the more hands, the sooner it is done, up to four at a time.',
+    enter: (t, hs, m) => { const g = gens[1]; field(m.F, tidx(m.x, m.y), false, 0); let b = g.slots[0]; for (const sl of g.slots) if (m.F.d[sl.n] < m.F.d[b.n]) b = sl; tutWalk(m, b, () => { t.f.at = true; }); },
+    target: (t, s) => (s.action && s.action.ref === gens[1]) ? null : gens[1],
+    tick: (t, hs, m) => { const g = gens[1]; if (!t.f.at || g.done || m.state !== 'free') return; const on = hs.some(s => s.action && s.action.type === 'repair' && s.action.ref === g); if (on || g.p < 0.5 * GEN_CHARGES) { if (!m.action) m.action = { type: 'repair', ref: g }; } else m.action = null; },   // she leaves the second half until someone joins her
+    done: () => gens[1].done, fix: (t, hs, m) => { if (!gens[1].done) completeGen(gens[1]); m.action = null; m.pgoal = null; } },
   { id: 'gate', text: 'Both generators are running, so the exit gate has power. Follow the arrow back to the gate, [act Open gate] and stay on the lever until its lights fill.',
-    enter: (t, p, m) => { tutWalk(m, TUT_AT(2, 9)); }, target: (t, p) => (p.action && p.action.type === 'gate') ? null : { x: gates[0].sx, y: gates[0].sy },
+    textN: 'Both generators are running, so the exit gate has power. Follow the arrow back to the gate. One of you: [act Open gate] and stay on the lever until its lights fill.',
+    enter: (t, hs, m) => { tutWalk(m, TUT_AT(2, 9)); }, target: (t, s) => (s.action && s.action.type === 'gate') ? null : { x: gates[0].sx, y: gates[0].sy },
     done: () => gates[0].open, fix: () => { if (!gates[0].open) openGate(gates[0]); } },
   { id: 'escape', text: 'The gate is open, which starts the collapse: everyone now has two minutes to leave, shown by the bar at the top. Walk out through the gate.',
-    target: () => ({ x: gates[0].x, y: gates[0].y }), done: (t, p) => p.state === 'escaped',
-    fix: (t, p, m) => { if (p.state !== 'escaped') escapeS(p); if (m.state !== 'escaped') escapeS(m); } }
+    target: () => ({ x: gates[0].x, y: gates[0].y }), each: (t, s) => s.state === 'escaped',
+    fix: (t, hs, m) => { for (const s of hs) if (s.state !== 'escaped') escapeS(s); if (m.state !== 'escaped') escapeS(m); } }
 ];
 function tutInit() {
-  const p = G.surv[0], m = G.surv[1], k = G.Ks[0], s0 = TUT_AT(2, 7);
-  G.tut = { i: 0, entered: false, stepT: 0, ran: 0, cr: 0, sub: '', note: '', noteT: 0, target: null, hl: null, skip: false, hurt: false, f: {} };
-  p.x = s0.x; p.y = s0.y; p.face = 0;
-  Object.assign(m, { puppet: true, ghost: true, x: -500, y: -500 });       // Mara waits off the map until her lesson
+  const m = G.surv[G.surv.length - 1], k = G.Ks[0];
+  G.tut = { i: 0, entered: false, stepT: 0, hl: null, skip: false, mara: m.id, f: {}, pl: {} };
+  G.surv.forEach((s, j) => { if (s === m) return; const a = TUT_AT(TUT_START[j % 8][0], TUT_START[j % 8][1]); Object.assign(s, { x: a.x, y: a.y, face: 0, cls: CLASSES[0], guard: 0, abT: 0 }); G.tut.pl[s.id] = tutPS(); });
+  Object.assign(m, { puppet: true, ghost: true, human: false, name: 'Mara', cls: CLASSES[2], x: -500, y: -500 });   // Mara waits off the map until her lesson
   k.type = Object.assign({}, HUNTERS[0], { speed: 3.4, cool: 3.2, bl: 0, stun: 3 }); k.tr = k.type.tr; tutHunterGone(k);
 }
 function tutStep(dt) {
-  const t = G.tut, p = G.surv[0], m = G.surv[1], k = G.Ks[0];
+  const t = G.tut, m = G.surv[t.mara], k = G.Ks[0];
+  for (const s of G.surv) if (s !== m && !s.human && !s.gone) { Object.assign(s, { gone: true, puppet: true, ghost: true, x: -500, y: -500, state: 'escaped', fate: 'left the training', action: null }); delete t.pl[s.id]; }   // a friend who drops out just leaves the yard
+  const hs = G.surv.filter(s => s.human && t.pl[s.id]); if (!hs.length) return;
   if (G.egc >= 0 && G.egc < 60) G.egc = 60;                              // nobody is timed out of a lesson
   if (m.state === 'hooked') m.hookT = HOOK_STAGE;
-  if (p.state === 'free' && p.health === 2) { Object.assign(p, { health: 1, healP: 0, bleed: BLEED_T, boostT: 2 }); if (!k.dead) stunKiller(5, k); tutNote('That hit would have put you down, and the hunter would hook you. Up you get: it is dazed, so run.'); }
-  else if (p.health === 1 && !t.hurt) { t.hurt = true; tutNote('You have been hit. You get a short burst of speed, so use it. One more hit puts you down.'); }
-  const sp = hyp(p.vx, p.vy); if (sp > 3.4) t.ran += sp * dt; if (p.crouch && sp > 0.3) t.cr += sp * dt;
+  for (const s of hs) {
+    const ps = t.pl[s.id]; if (s.inp && s.inp.next) { s.inp.next = false; ps.ack = true; }
+    if (s.state === 'free' && s.health === 2) { Object.assign(s, { health: 1, healP: 0, bleed: BLEED_T, boostT: 2 }); if (!k.dead) stunKiller(5, k); tutNote(ps, 'That hit would have put you down, and the hunter would hook you. Up you get: it is dazed, so run.'); }
+    else if (s.health === 1 && !ps.hurt) { ps.hurt = true; tutNote(ps, 'You have been hit. You get a short burst of speed, so use it. One more hit puts you down.'); }
+    const sp = hyp(s.vx, s.vy); if (sp > 3.4) ps.ran += sp * dt; if (s.crouch && sp > 0.3) ps.cr += sp * dt;
+  }
   t.stepT += dt;
   for (let guard = 0; guard < 6; guard++) {
-    const S = TUT[t.i]; if (!S) { t.target = null; t.hl = null; return; }
-    if (!t.entered) { Object.assign(t, { entered: true, stepT: 0, ran: 0, cr: 0, sub: '', f: {} }); if (S.enter) S.enter(t, p, m, k); }
-    if (S.tick) S.tick(t, p, m, k, dt);
-    if (!(t.skip || (!S.next && S.done && S.done(t, p, m, k, dt)))) { t.target = S.target ? S.target(t, p, m, k) : null; t.hl = S.hl || null; return; }
-    t.skip = false; if (S.fix) S.fix(t, p, m, k); t.i++; t.entered = false;
+    const S = TUT[t.i]; if (!S) { for (const s of hs) t.pl[s.id].target = null; t.hl = null; return; }
+    if (!t.entered) { Object.assign(t, { entered: true, stepT: 0, f: {} }); for (const s of hs) Object.assign(t.pl[s.id], { ran: 0, cr: 0, f: {}, ok: false, ack: false, sub: '' }); if (S.enter) S.enter(t, hs, m, k); }
+    if (S.tick) S.tick(t, hs, m, k, dt);
+    const own = !!(S.next || S.each); let left = 0;                      // lessons each learner has to do for themselves
+    if (own) for (const s of hs) { const ps = t.pl[s.id]; if (S.next) ps.ok = ps.ack; else if (!ps.ok) ps.ok = !!S.each(t, s, ps, m, k, dt); if (!ps.ok) left++; }
+    if (!(t.skip || (left === 0 && (!S.done || S.done(t, hs, m, k))))) {
+      for (const s of hs) { const ps = t.pl[s.id], fin = own && ps.ok; ps.target = (fin || !S.target) ? null : S.target(t, s, ps, m, k); if (fin) ps.sub = 'Done. Waiting for ' + left + (left === 1 ? ' other.' : ' others.'); }
+      t.hl = S.hl || null; return;
+    }
+    t.skip = false; if (S.fix) S.fix(t, hs, m, k); t.i++; t.entered = false;
   }
 }
 
@@ -1479,8 +1504,9 @@ if (!HEADLESS) (function () {
       if (s.state === 'free' && s.action && s.action.type === 'revive') { cx.strokeStyle = 'rgba(185,163,230,0.8)'; cx.lineWidth = 0.1; cx.beginPath(); cx.arc(s.action.ref.dx, s.action.ref.dy, 1.3, -Math.PI / 2, -Math.PI / 2 + TAU * s.action.p / 25); cx.stroke(); }
     }
     // premonition: the team's shared belief about where the hunter is
-    if (G.tut && G.tut.target) {                                         // the training marker: a lantern, or a ring round the thing to use
-      const q = G.tut.target, pu = 0.5 + 0.5 * Math.sin(now * 4), gg = cx.createRadialGradient(q.x, q.y, 0.1, q.x, q.y, 2.6); gg.addColorStop(0, 'rgba(240,190,90,' + (q.lamp ? 0.55 : 0.25) + ')'); gg.addColorStop(1, 'rgba(240,190,90,0)');
+    const tq = tutMe() && tutMe().target;
+    if (tq) {                                                            // the training marker: a lantern, or a ring round the thing to use
+      const q = tq, pu = 0.5 + 0.5 * Math.sin(now * 4), gg = cx.createRadialGradient(q.x, q.y, 0.1, q.x, q.y, 2.6); gg.addColorStop(0, 'rgba(240,190,90,' + (q.lamp ? 0.55 : 0.25) + ')'); gg.addColorStop(1, 'rgba(240,190,90,0)');
       cx.fillStyle = gg; cx.beginPath(); cx.arc(q.x, q.y, 2.6, 0, TAU); cx.fill(); cx.strokeStyle = 'rgba(240,190,90,' + (0.5 + 0.4 * pu) + ')'; cx.lineWidth = 0.1; cx.beginPath(); cx.arc(q.x, q.y, 1.05 + 0.25 * pu, 0, TAU); cx.stroke();
       if (q.lamp) { cx.fillStyle = '#f6d58a'; cx.beginPath(); cx.arc(q.x, q.y, 0.22, 0, TAU); cx.fill(); }
     }
@@ -1493,7 +1519,7 @@ if (!HEADLESS) (function () {
     for (const s of G.surv) { if (s === focus) continue; if (s.state === 'hooked') edgeMark(s.x, s.y, '#eb4632', 'H'); else if (s.state === 'free' && s.health === 2) edgeMark(s.x, s.y, '#eb963c', '!'); else if (s.state === 'free' && canSee(s)) { txt(s.name, sx(s.x), sy(s.y) - 0.9 * S, 13, 'rgba(217,210,194,0.8)', 'center'); } }
     if (p.cls.id === 4 && p.stage < 2 && inPlay(p)) for (const s of G.surv) if (s.state === 'dead' && s.dx !== undefined && s.fate !== 'taken by the collapse') edgeMark(s.dx, s.dy, '#b9a3e6', '+');
     if (G.powered && radio && !radio.done) edgeMark(radio.x, radio.y, COL.amber, 'R');
-    if (G.tut && G.tut.target && inPlay(p)) edgeMark(G.tut.target.x, G.tut.target.y, COL.amber, 'GO');
+    if (tq && inPlay(p)) edgeMark(tq.x, tq.y, COL.amber, 'GO');
     if (G.powered && !G.tut && !(radio && !radio.done)) for (const g of gates) edgeMark(g.sx, g.sy, g.open ? '#d6e2de' : COL.amber, 'G');
     if (team) {
       G.Ks.forEach((K, k) => { if (!K.dead && SBs.seenK[k] && !canSee(K)) edgeMark(K.x, K.y, '#e1281e', 'X'); }); const ki = sbFor(p), tr = SBs.trs[ki], Kp = G.Ks[ki];
@@ -1634,7 +1660,7 @@ if (!HEADLESS) (function () {
     g.strokeStyle = COL.bone; g.lineWidth = 4; g.beginPath(); R.forEach((r, i) => { if (i) g.lineTo(r[0] * k, r[1] * k); else g.moveTo(r[0] * k, r[1] * k); }); g.stroke();
   }
   function showEnd() {
-    if (G.tut) { endShown = true; mode = 'end'; show('tutEnd'); return; }
+    if (G.tut) { endShown = true; mode = 'end'; MP.onEnd(); $('tutEnd').classList.remove('guest'); $('bTutMenu').textContent = 'Back to the menu'; show('tutEnd'); return; }
     endShown = true; mode = 'end'; MP.onEnd(); $('bAgain').style.display = ''; const p = G.surv[G.me | 0], r = G.result, H2 = BRAIN.hist;
     $('eTitle').textContent = p.state === 'escaped' ? (p.fate === 'outlived the hunt' ? 'You outlived the hunt' : 'You escaped') : p.fate === 'bled out' ? 'You bled out' : p.fate === 'taken by the collapse' ? 'The collapse took you' : 'You were sacrificed';
     $('eSub').textContent = r.esc + ' of ' + G.surv.length + ' got out in ' + Math.floor(r.time / 60) + ' min ' + Math.round(r.time % 60) + ' s. ' + MAP.name + ', ' + G.hiq.name.toLowerCase() + ' hunter, ' + G.siq.name.toLowerCase() + ' team. ' + (G.Ks.length > 1 ? 'The hunters were ' : 'The hunter was ') + G.Ks.map(k => k.type.name).join(' and ') + '; you played the ' + p.cls.name + '.';
@@ -1652,25 +1678,38 @@ if (!HEADLESS) (function () {
     .replace('[sc]', TOUCH ? 'Tap the big button' : 'Press Space')
     .replace(/\[act1 ([^\]]+)\]/, TOUCH ? 'tap the big button when it says $1' : 'press Space when the big button says $1')
     .replace(/\[act ([^\]]+)\]/, TOUCH ? 'tap $1' : 'press Space ($1)');
+  const tutMe = () => (G && G.tut && G.tut.pl[G.me | 0]) || null;        // this device's learner: lessons are shared, progress is per person
   function tutUI(p) {
-    const el = $('tut'), t = G && G.tut, S = t && TUT[t.i];
-    if (!S || mode !== 'play' || G.over) { if (tutShown !== -1) { el.classList.add('hidden'); tutShown = -1; } return; }
-    if (tutShown !== t.i) {
-      tutShown = t.i; el.classList.remove('hidden'); $('tutFill').style.width = Math.round(100 * (t.i + 1) / TUT.length) + '%'; $('tutText').textContent = tutWords(S.text);
-      $('tutNext').classList.toggle('hidden', !S.next); $('tutSkip').classList.toggle('hidden', !!S.next); AU.tone(880, 0.1, 'triangle', 0.1); AU.tone(1320, 0.16, 'triangle', 0.08, 0, 0.09);
+    const el = $('tut'), t = G && G.tut, S = t && TUT[t.i], me = tutMe();
+    if (!S || !me || mode !== 'play' || G.over) { if (tutShown !== -1) { el.classList.add('hidden'); tutShown = -1; } return; }
+    const group = G.surv.filter(s => s.human).length > 1, host = G.net !== 'client', key = t.i * 2 + (group ? 1 : 0);
+    if (tutShown !== key) {
+      tutShown = key; el.classList.remove('hidden'); $('tutFill').style.width = Math.round(100 * (t.i + 1) / TUT.length) + '%'; $('tutText').textContent = tutWords((group && S.textN) || S.text);
+      $('tutSkip').textContent = group ? 'Skip this lesson for everyone' : 'Skip this lesson'; AU.tone(880, 0.1, 'triangle', 0.1); AU.tone(1320, 0.16, 'triangle', 0.08, 0, 0.09);
     }
-    const sub = (t.note && t.noteT > G.t) ? t.note : (t.sub || ''); if ($('tutSub').textContent !== sub) $('tutSub').textContent = sub;
+    $('tutNext').classList.toggle('hidden', !S.next || me.ok); $('tutSkip').classList.toggle('hidden', !host || (!!S.next && !group));
+    const sub = (me.note && me.noteT > G.t) ? me.note : (me.sub || ''); if ($('tutSub').textContent !== sub) $('tutSub').textContent = sub;
     el.classList.toggle('dim', !!(p.sc && p.sc.phase));                  // step aside while a skill check is on screen
   }
+  /* what the host tells each friend's device about the lesson, and how that device takes it in */
+  const tutFor = s => { const t = G.tut, ps = t && t.pl[s.id]; if (!ps) return 0; const q = ps.target; return [t.i, (ps.note && ps.noteT > G.t) ? ps.note : (ps.sub || ''), q ? [Math.round(q.x * 10) / 10, Math.round(q.y * 10) / 10, q.lamp ? 1 : 0] : 0, ps.ok ? 1 : 0]; };
+  function tutFrom(a) {
+    const t = G.tut, me = tutMe(); if (!me || !a) return;
+    if (t.i !== a[0]) { if (TUT[t.i] && TUT[t.i].id === 'crouch') INPUT.crouch = false; t.i = a[0]; }
+    t.hl = TUT[t.i] ? (TUT[t.i].hl || null) : null; me.sub = String(a[1] || ''); me.note = ''; me.target = a[2] ? { x: a[2][0], y: a[2][1], lamp: a[2][2] } : null; me.ok = !!a[3];
+  }
+  function tutEndGuest() { endShown = true; mode = 'end'; $('tutEnd').classList.add('guest'); $('bTutMenu').textContent = 'Leave the room'; show('tutEnd'); }
   function startTutorial() {
-    AU.init(); const info = MP.info(); if (info && info.role) MP.leave();   // training is a solo affair
-    newMatch({ tut: true, map: MAPS.findIndex(m => m.tut), cls: 0, team: [2], hunter: 0, hunters: 1, survivors: 2, hiq: 0, siq: 1 });
-    INPUT.jx = INPUT.jy = 0; INPUT.act = INPUT.ab = false; INPUT.crouch = false; joy = null; toasts = []; endShown = false; paused = false; accT = 0; tutShown = -1;
-    const p = G.surv[0]; cam.x = p.x; cam.y = p.y; mode = 'play'; show(null);
+    AU.init(); const info = MP.info(); if (info && info.role === 'client') MP.leave();   // a friend who starts their own training leaves the room first
+    const players = MP.players();                                        // hosting with friends in the room: everyone trains together
+    newMatch({ tut: true, players, map: MAPS.findIndex(m => m.tut), cls: 0, hunter: 0, hunters: 1, survivors: (players ? players.length : 1) + 1, hiq: 0, siq: 1 });
+    INPUT.jx = INPUT.jy = 0; INPUT.act = INPUT.ab = INPUT.next = false; INPUT.crouch = false; joy = null; toasts = []; endShown = false; paused = false; accT = 0; tutShown = -1;
+    const p = G.surv[0]; cam.x = p.x; cam.y = p.y; mode = 'play'; show(null); MP.onStart();
   }
   $('bTut').onclick = startTutorial; $('bTutAgain').onclick = startTutorial;
-  $('tutNext').onclick = $('tutSkip').onclick = e => { AU.init(); if (e && e.currentTarget) e.currentTarget.blur(); if (G && G.tut) G.tut.skip = true; };
-  $('bTutMenu').onclick = () => { mode = 'menu'; show('menu'); refreshMenu(); };
+  $('tutNext').onclick = e => { AU.init(); if (e && e.currentTarget) e.currentTarget.blur(); INPUT.next = true; };
+  $('tutSkip').onclick = e => { AU.init(); if (e && e.currentTarget) e.currentTarget.blur(); if (G && G.tut && G.net !== 'client') G.tut.skip = true; };
+  $('bTutMenu').onclick = () => { if (G && G.net === 'client') { MP.leave(); return; } mode = 'menu'; show('menu'); refreshMenu(); };
   $('bPractice').onclick = () => { Object.assign(OPT, { map: 0, hunter: 0, hiq: 0, siq: 2, hunters: 1, survivors: 4 }); pickers(); startTrial(); };
 
   $('bPlay').onclick = startTrial; $('bAgain').onclick = startTrial;
@@ -1693,7 +1732,7 @@ if (!HEADLESS) (function () {
     const hosted = /^https?:$/.test(location.protocol), cfg = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     const STN = ['free', 'hooked', 'carried', 'dead', 'escaped'], AT = [null, 'repair', 'heal', 'unhook', 'gate', 'radio', 'aim', 'revive', 'selfheal'];
     const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
-    let role = null, code = '', peers = [], hostConn = null, peer = null, timer = null, seenOffers = {}, snapT = 0, inT = 0, evq = [], lastMarkT = 0, premN = 0, cntA = 0, cntB = 0, myName = '', lobby = [], lastSnap = 0;
+    let role = null, code = '', peers = [], hostConn = null, peer = null, timer = null, seenOffers = {}, snapT = 0, inT = 0, evq = [], lastMarkT = 0, premN = 0, cntA = 0, cntB = 0, cntN = 0, myName = '', lobby = [], lastSnap = 0;
     const say = t => { $('mpStatus').textContent = t || ''; };
     const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('load')); document.head.appendChild(el); });
     const waitIce = (pc, ms) => new Promise(res => { if (pc.iceGatheringState === 'complete') return res(); const t = setTimeout(res, ms); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
@@ -1721,8 +1760,8 @@ if (!HEADLESS) (function () {
     async function accept(cid, offer) { try { const pc = new RTCPeerConnection(cfg); pc.ondatachannel = e => { const ch = e.channel; ch.onopen = () => addPeer(wrap(ch, false)); }; await pc.setRemoteDescription(offer); await pc.setLocalDescription(await pc.createAnswer()); await waitIce(pc, 2500); await KV.set('mp:a:' + code + ':' + cid, JSON.stringify(pc.localDescription)); } catch (e) { say('A friend tried to join but the link failed: ' + e.message); } }
     function addPeer(conn) {
       if (peers.length >= 7) { conn.send({ t: 'full' }); return; }
-      const p = { conn, name: 'Guest', cls: 0, si: -1, a: 0, b: 0, inp: { jx: 0, jy: 0, crouch: false, act: false, ab: false } }; peers.push(p);
-      conn.onmsg = m => { if (m.t === 'hello') { p.name = String(m.name || 'Guest').slice(0, 12); p.cls = m.cls | 0; tell(); } else if (m.t === 'i') { p.last = performance.now(); p.inp.jx = +m.x || 0; p.inp.jy = +m.y || 0; p.inp.crouch = !!m.c; if (m.a !== p.a) { p.a = m.a; p.inp.act = true; } if (m.b !== p.b) { p.b = m.b; p.inp.ab = true; } } };
+      const p = { conn, name: 'Guest', cls: 0, si: -1, a: 0, b: 0, n: 0, inp: { jx: 0, jy: 0, crouch: false, act: false, ab: false, next: false } }; peers.push(p);
+      conn.onmsg = m => { if (m.t === 'hello') { p.name = String(m.name || 'Guest').slice(0, 12); p.cls = m.cls | 0; tell(); } else if (m.t === 'i') { p.last = performance.now(); p.inp.jx = +m.x || 0; p.inp.jy = +m.y || 0; p.inp.crouch = !!m.c; if (m.a !== p.a) { p.a = m.a; p.inp.act = true; } if (m.b !== p.b) { p.b = m.b; p.inp.ab = true; } if ((m.n | 0) !== p.n) { p.n = m.n | 0; p.inp.next = true; } } };
       conn.onclose = () => { peers = peers.filter(q => q !== p); if (G && G.net !== 'client' && p.si >= 0 && G.surv[p.si]) G.surv[p.si].human = false; tell(); };   // a friend who drops out is replaced by a bot
       tell();
     }
@@ -1730,7 +1769,7 @@ if (!HEADLESS) (function () {
     const players = () => (role === 'host' && peers.length) ? [{ cls: OPT.cls, name: myName, inp: INPUT }].concat(peers.map(p => ({ cls: p.cls, name: p.name, inp: p.inp }))) : undefined;
     function onStart() {
       if (role !== 'host') return; evq = []; lastMarkT = 0;
-      peers.forEach((p, i) => { p.si = i + 1; p.last = performance.now(); p.inp.act = p.inp.ab = false; p.conn.send({ t: 'start', map: MAP.id, nS: G.surv.length, nH: G.Ks.length, cls: G.surv.map(s => s.cls.id), names: G.surv.map(s => s.name), hum: G.surv.map(s => s.human ? 1 : 0), types: G.Ks.map(k => k.type.id), ch: GEN_CHARGES, has: gens.map(g => g.has ? 1 : 0), me: p.si, hiq: OPT.hiq, siq: OPT.siq }); });
+      peers.forEach((p, i) => { p.si = i + 1; p.last = performance.now(); p.inp.act = p.inp.ab = p.inp.next = false; p.conn.send({ t: 'start', tut: G.tut ? 1 : 0, map: MAP.id, nS: G.surv.length, nH: G.Ks.length, cls: G.surv.map(s => s.cls.id), names: G.surv.map(s => s.name), hum: G.surv.map(s => s.human ? 1 : 0), types: G.Ks.map(k => k.type.id), ch: GEN_CHARGES, has: gens.map(g => g.has ? 1 : 0), me: p.si, hiq: OPT.hiq, siq: OPT.siq }); });
     }
     function ev(e) { if (role === 'host' && peers.length && evq.length < 80) evq.push({ y: e.type, x: e.x, Y: e.y, s: e.s ? e.s.id : -1, k: e.K ? e.K.idx : -1, f: e.fast ? 1 : 0 }); }
     function hostFrame(dt) {
@@ -1747,7 +1786,7 @@ if (!HEADLESS) (function () {
         sk: G.SB.seenK.map(v => v ? 1 : 0), se: G.SB.trs.map(t => [r1(t.est.x), r1(t.est.y), r2(t.est.conf)]) };
       if (++premN % 4 === 0) m.pm = G.SB.trs.map(t => { const o = []; for (let c = 0; c < NC; c++) if (t.m[c] > 0.006) o.push(c, Math.round(t.m[c] * 100)); return o; });
       lastMarkT = G.t; evq = [];
-      for (const p of peers) { const s = G.surv[p.si]; if (!s) continue; m.me = [s.sc ? [s.sc.phase, r2(s.sc.a0), r2(s.sc.ang), s.sc.res, s.sc.type === 'repair' ? 1 : 0] : 0, r2(s.eye || 0)]; p.conn.send(m); }
+      for (const p of peers) { const s = G.surv[p.si]; if (!s) continue; m.me = [s.sc ? [s.sc.phase, r2(s.sc.a0), r2(s.sc.ang), s.sc.res, s.sc.type === 'repair' ? 1 : 0] : 0, r2(s.eye || 0)]; m.tu = G.tut ? tutFor(s) : 0; p.conn.send(m); }
     }
     function onEnd() { if (role !== 'host') return; for (const p of peers) p.conn.send({ t: 'end', esc: G.result.esc, n: G.surv.length, time: G.result.time, st: G.surv.map(s => [STN.indexOf(s.state), s.fate]) }); }
     /* ----- friend ----- */
@@ -1768,7 +1807,7 @@ if (!HEADLESS) (function () {
       if (m.t === 'lobby') { lobby = m.names; ui(); }
       else if (m.t === 'full') say('That room is full.');
       else if (m.t === 'start') {
-        AU.init(); lastSnap = performance.now(); newMatch({ map: m.map, survivors: m.nS, hunters: m.nH, hiq: m.hiq, siq: m.siq }); G.net = 'client'; G.me = m.me; GEN_CHARGES = m.ch;
+        AU.init(); lastSnap = performance.now(); newMatch({ tut: !!m.tut, map: m.map, survivors: m.nS, hunters: m.nH, hiq: m.hiq, siq: m.siq }); G.net = 'client'; G.me = m.me; GEN_CHARGES = m.ch;
         G.surv.forEach((s, i) => { s.cls = CLASSES[m.cls[i]]; s.name = m.names[i]; s.human = !!m.hum[i]; s.isPlayer = false; s.tx = s.x; s.ty = s.y; s.guard = s.cls.guard || 0; });
         G.Ks.forEach((k, i) => { k.type = HUNTERS[m.types[i]]; k.tr = k.type.tr; k.tx = k.x; k.ty = k.y; }); gens.forEach((g, i) => { g.has = !!m.has[i]; });
         INPUT.jx = INPUT.jy = 0; INPUT.act = INPUT.ab = false; INPUT.crouch = false; joy = null; toasts = []; endShown = false; paused = false; const p = G.surv[G.me]; cam.x = p.x; cam.y = p.y;
@@ -1796,7 +1835,7 @@ if (!HEADLESS) (function () {
       for (const a of m.m) G.marks.push({ x: a[0], y: a[1], t: a[2], o: a[3], k: a[4], a: a[5], life: a[6] }); while (G.marks.length && G.t - G.marks[0].t > MARK_LIFE * 1.5) G.marks.shift();
       m.sk.forEach((v, i) => { G.SB.seenK[i] = !!v; }); m.se.forEach((a, i) => { const e = G.SB.trs[i].est; e.x = a[0]; e.y = a[1]; e.conf = a[2]; });
       if (m.pm) m.pm.forEach((o, i) => { const mm = G.SB.trs[i].m; mm.fill(0); for (let j = 0; j < o.length; j += 2) mm[o[j]] = o[j + 1] / 100; });
-      const me = G.surv[G.me]; me.sc = m.me[0] ? { phase: m.me[0][0], a0: m.me[0][1], ang: m.me[0][2], res: m.me[0][3], type: m.me[0][4] ? 'repair' : 'heal', t: 0.5 } : null; me.eye = m.me[1];
+      const me = G.surv[G.me]; me.sc = m.me[0] ? { phase: m.me[0][0], a0: m.me[0][1], ang: m.me[0][2], res: m.me[0][3], type: m.me[0][4] ? 'repair' : 'heal', t: 0.5 } : null; me.eye = m.me[1]; if (m.tu) tutFrom(m.tu);
       for (const q of m.e) G.events.push({ type: q.y, x: q.x, y: q.Y, s: q.s >= 0 ? G.surv[q.s] : undefined, K: q.k >= 0 ? G.Ks[q.k] : undefined, fast: !!q.f, t: G.t });
       handleEvents(false);
     }
@@ -1806,10 +1845,11 @@ if (!HEADLESS) (function () {
       for (const s of G.surv) if (s.tx !== undefined) { s.x += (s.tx - s.x) * k; s.y += (s.ty - s.y) * k; }
       for (const q of G.Ks) if (q.tx !== undefined) { q.x += (q.tx - q.x) * k; q.y += (q.ty - q.y) * k; }
       const me = G.surv[G.me]; if (me.sc && me.sc.phase === 2) me.sc.ang += TAU / 1.2 * dt;
-      if (INPUT.act) { INPUT.act = false; cntA++; } if (INPUT.ab) { INPUT.ab = false; cntB++; }
-      inT += dt; if (inT >= 0.05 && hostConn) { inT = 0; hostConn.send({ t: 'i', x: r2(INPUT.jx), y: r2(INPUT.jy), c: INPUT.crouch ? 1 : 0, a: cntA, b: cntB }); }
+      if (INPUT.act) { INPUT.act = false; cntA++; } if (INPUT.ab) { INPUT.ab = false; cntB++; } if (INPUT.next) { INPUT.next = false; cntN++; }
+      inT += dt; if (inT >= 0.05 && hostConn) { inT = 0; hostConn.send({ t: 'i', x: r2(INPUT.jx), y: r2(INPUT.jy), c: INPUT.crouch ? 1 : 0, a: cntA, b: cntB, n: cntN }); }
     }
     function endClient(m) {
+      if (G.tut) { tutEndGuest(); return; }
       endShown = true; mode = 'end'; const p = G.surv[G.me];
       $('eTitle').textContent = p.state === 'escaped' ? (p.fate === 'outlived the hunt' ? 'You outlived the hunt' : 'You escaped') : p.fate === 'bled out' ? 'You bled out' : p.fate === 'taken by the collapse' ? 'The collapse took you' : 'You were sacrificed';
       $('eSub').textContent = m.esc + ' of ' + m.n + ' got out in ' + Math.floor(m.time / 60) + ' min ' + Math.round(m.time % 60) + ' s. ' + MAP.name + '.';
@@ -1841,7 +1881,7 @@ if (!HEADLESS) (function () {
       $('mpHost').onclick = () => { lobby = []; host(($('mpName').value || 'Host').trim()).then(tell); };
       $('mpJoin').onclick = () => { role = 'joining'; ui(); say(''); };
       $('mpJoinGo').onclick = () => join($('mpJoinCode').value, ($('mpName').value || 'Guest').trim(), OPT.cls);
-      $('mpStart').onclick = () => startTrial(); $('mpClose').onclick = () => { leave(); say(''); };
+      $('mpStart').onclick = () => startTrial(); $('mpTrain').onclick = () => startTutorial(); $('mpClose').onclick = () => { leave(); say(''); };
       $('mpLink').onchange = () => { qr(); try { if (window.storage) window.storage.set('dr-link', $('mpLink').value, false); } catch (e) { } };
       (async () => { try { if (window.storage) { const r = await window.storage.get('dr-link', false); if (r && r.value) $('mpLink').value = r.value; } } catch (e) { } })();
       if (/join=[A-Za-z]{4}/.test(location.hash || '')) setTimeout(open, 300);
