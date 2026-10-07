@@ -217,7 +217,11 @@ const CLASSES = [
 const HUNTERS = [
   { id: 0, name: 'The Warden', speed: 4.6, tr: 32, cool: 2.2, brk: 2.0, bl: 2, stun: 2.0, pro: 'Relentless: recovers fast after a hit, smashes pallets quickly, speeds up sooner in a long chase.', con: 'No special power. You always hear it coming.' },
   { id: 1, name: 'The Shade', speed: 4.6, tr: 32, cool: 2.7, brk: 2.6, bl: 1, stun: 3.0, pro: 'Cloaks when it loses you: no heartbeat, no red glow, faster, almost invisible beyond 14 m.', con: 'Must uncloak before it can strike, and a bell gives that away. Pallets stun it for longer.' },
-  { id: 2, name: 'The Brute', speed: 4.4, tr: 40, cool: 2.7, brk: 2.6, bl: 1, stun: 2.0, pro: 'Charges in a straight line at twice your speed whenever it has a clear run at you.', con: 'Slower on foot, heard from 40 m away, and stuns itself if the charge hits a wall.' }
+  { id: 2, name: 'The Brute', speed: 4.4, tr: 40, cool: 2.7, brk: 2.6, bl: 1, stun: 2.0, pro: 'Charges in a straight line at twice your speed whenever it has a clear run at you.', con: 'Slower on foot, heard from 40 m away, and stuns itself if the charge hits a wall.' },
+  { id: 3, name: 'The Shapeshifter', speed: 4.55, tr: 32, cool: 2.7, brk: 2.6, bl: 1, stun: 2.6, quiet: true, shift: true, hb: 6, revealT: 0.7, revealD: 5.5, surgeT: 1.6, pro: 'When nobody is watching it takes the shape of one of your teammates: no red glow, and no heartbeat until it is 6 m away. It walks right up to you.', con: 'In disguise it can only move at your running pace. It has to shed the disguise before it can strike, which takes 0.7 s and comes with a snarl. A copy never repairs, heals or leaves scratch marks, and it flickers red every few seconds. Pallets stun it for longer.' },
+  { id: 4, name: 'The Machine', speed: 4.22, tr: 40, cool: 2.7, brk: 2.6, bl: 2, blMax: 0.7, stun: 0, nostun: true, nokill: true, nowin: true, beam: true, warm: 1.1, beamHit: 12, beamMiss: 5, pro: 'Cannot be stunned or killed. Fires a heat beam that wounds a healthy survivor from up to 15 m away, and gets steadily faster the longer one chase lasts.', con: 'The slowest hunter on foot, heard from 40 m, and too heavy to climb through windows. The beam takes 1.1 s to warm up while it stands still, misses if you break its line of sight, and can never put you down. A crossbow bolt knocks the beam out for 40 s.' },
+  { id: 5, name: 'The Dancer', speed: 4.95, tr: 44, cool: 2.7, brk: 2.6, bl: 1, stun: 2.0, nowin: true, troupe: true, beat: 7, poseT: 0.7, daz: 1.0, pro: 'The fastest hunter between poses. Four backup dancers circle it: each one soaks up a pallet or a crossbow bolt meant for the Dancer, and anyone they brush against is dazzled, slowed for 2.5 s.', con: 'It can only move to the beat: every 7 s it stops dead to strike a pose. The music carries 44 m, the troupe cannot fit through windows, and a dancer who takes a hit sits out for 45 s.' },
+  { id: 6, name: 'The Elastoman', speed: 4.3, tr: 32, cool: 3.0, brk: 2.6, bl: 1, stun: 3.2, flow: true, grapple: true, grapCd: 12, reachT: 0.7, gather: 0.8, tangle: 2.0, snag: 0.5, flingV: 16, pro: 'Pours through windows and over dropped pallets without slowing down. Every 12 s it can fling an arm up to 15 m at a survivor it can see, grab them and haul itself in, and whoever the hand is holding moves at half speed.', con: 'Slow on foot and slow to recover after a hit. The arm takes 0.7 s to stretch out: break its line of sight in that time and it misses, leaving the Elastoman tangled for 2 s. A pallet dropped right on it still stuns, and for longer than usual.' }
 ];
 const scGreat = p => SC_GREAT * ((p || G.surv[G.me | 0]).cls.id === 0 ? 1.8 : 1);
 const DX = [1, 1, 0, -1, -1, -1, 0, 1, 0], DY = [0, 1, 1, 1, 0, -1, -1, -1, 0];   // index 8 = stay
@@ -372,6 +376,7 @@ const cellOf = (x, y) => clamp(Math.floor(y / CELL), 0, BH - 1) * BW + clamp(Mat
 function solidS(tx, ty) { if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true; const t = tiles[ty * MW + tx]; return !(t === FLOOR || t === PAL_UP || t === GATE_OPEN); }
 function solidK(tx, ty) { if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true; const t = tiles[ty * MW + tx]; return !(t === FLOOR || t === PAL_UP); }
 function ray(x0, y0, dx, dy, maxD, mark, stamp) {
+  if (!(x0 === x0 && y0 === y0 && dx === dx && dy === dy)) return 0;   // never walk the grid from nowhere
   let tx = Math.floor(x0 / T), ty = Math.floor(y0 / T);
   const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, adx = Math.abs(dx), ady = Math.abs(dy);
   const ddx = adx > 1e-9 ? T / adx : 1e9, ddy = ady > 1e-9 ? T / ady : 1e9;
@@ -417,6 +422,7 @@ const HN = new Int32Array(40000), HP = new Float32Array(40000); let HL = 0;
 function hpush(n, p) { let i = HL++; while (i > 0) { const q = (i - 1) >> 1; if (HP[q] <= p) break; HN[i] = HN[q]; HP[i] = HP[q]; i = q; } HN[i] = n; HP[i] = p; }
 function hpop() { const n = HN[0]; HL--; if (HL > 0) { const ln = HN[HL], lp = HP[HL]; let i = 0; for (; ;) { let c = 2 * i + 1; if (c >= HL) break; if (c + 1 < HL && HP[c + 1] < HP[c]) c++; if (HP[c] >= lp) break; HN[i] = HN[c]; HP[i] = HP[c]; i = c; } HN[i] = ln; HP[i] = lp; } return n; }
 const newField = () => ({ d: new Float32Array(N), prev: new Int32Array(N), via: new Uint8Array(N) });
+let FIELD_NOWIN = false, FIELD_FLOW = false;   // set while a hunter that cannot climb, or one that does not slow down, plans its route
 function field(F, sn, k, palCost, more) {
   const d = F.d, prev = F.prev, via = F.via; d.fill(1e9); prev.fill(-1); via.fill(0);
   HL = 0; d[sn] = 0; hpush(sn, 0); if (more) for (const m of more) { d[m] = 0; hpush(m, 0); }
@@ -431,10 +437,10 @@ function field(F, sn, k, palCost, more) {
         let c = p + ((dx && dy) ? 1.4142 : 1); if (palCost && tt === PAL_UP) c += palCost;
         if (c < d[m]) { d[m] = c; prev[m] = n; via[m] = 0; hpush(m, c); }
       } else if (!(dx && dy) && (tt === WINDOW || tt === PAL_DN)) {
-        if (vaxis[m] !== (dx ? 0 : 1)) continue;
+        if (vaxis[m] !== (dx ? 0 : 1) || (k && FIELD_NOWIN && tt === WINDOW)) continue;
         const bx = nx + dx, by = ny + dy; if (bx < 0 || by < 0 || bx >= MW || by >= MH) continue;
         const b = by * MW + bx, bt = tiles[b]; if (!(bt === FLOOR || bt === PAL_UP)) continue;
-        const c = p + 2 + (k ? (tt === WINDOW ? 4 : 6.5) : (tt === WINDOW ? 1.2 : 2.4));
+        const c = p + 2 + (k ? (FIELD_FLOW ? 0.4 : tt === WINDOW ? 4 : 6.5) : (tt === WINDOW ? 1.2 : 2.4));
         if (c < d[b]) { d[b] = c; prev[b] = n; via[b] = (tt === PAL_DN && k) ? 2 : 1; hpush(b, c); }
       }
     }
@@ -587,14 +593,14 @@ function newMatch(opt) {
   const kx = (kn % MW + .5) * T, ky = (((kn / MW) | 0) + .5) * T;
   G.K = { x: kx, y: ky, r: 0.55, vx: 0, vy: 0, face: rnd(TAU), st: 'free', tmr: 0, carry: null, goal: null, path: null, pi: 0, think: 0, F: newField(), sees: [false, false, false, false], seenT: [-99, -99, -99, -99], chase: null, lt: null, vault: null, scan: 1, knowsHatch: false, pc: -1, ph: 8, pctx: 0, stuckT: 0, lx: kx, ly: ky, bl: 0 };
   const ht = (opt.hunter >= 0 && opt.hunter < HUNTERS.length) ? opt.hunter : (Math.random() * HUNTERS.length) | 0;
-  Object.assign(G.K, { type: HUNTERS[ht], tr: HUNTERS[ht].tr, cloak: false, chargeCd: 5, surge: 0, cdir: 0, unseenT: 0 });
+  Object.assign(G.K, { type: HUNTERS[ht], tr: HUNTERS[ht].tr, cloak: false, chargeCd: 5, surge: 0, cdir: 0, unseenT: 0, dg: -1, noShiftT: 0, beamCd: 8, aim: null, dn: [0, 0, 0, 0], beatT: 0, grapCd: 8, gl: null, fl: null });
   const nH = clamp((opt.hunters | 0) || 1, 1, 3), nS = clamp(Math.max((opt.survivors | 0) || 4, opt.players ? opt.players.length : 1), 2, opt.tut ? 9 : 8);
   GEN_CHARGES = MAP.obj.charges * (0.5 + 0.5 * nS / 4) * Math.pow(0.8, nH - 1);                 // more hands, more work per objective
   G.sees = new Array(nS).fill(false); G.seenT = new Array(nS).fill(-99); G.K.sees = G.sees; G.K.seenT = G.seenT; G.K.idx = 0; G.Ks = [G.K];   // hunters share one pair of eyes
   for (let j = 1; j < nH; j++) {
     let n2 = kn, tries = 0; do { n2 = floorList[(Math.random() * floorList.length) | 0]; } while (tries++ < 40 && kNear((n2 % MW + .5) * T, (((n2 / MW) | 0) + .5) * T) < 30);
     const x2 = (n2 % MW + .5) * T, y2 = (((n2 / MW) | 0) + .5) * T, t2 = HUNTERS[(ht + j) % HUNTERS.length];
-    G.Ks.push(Object.assign({}, G.K, { x: x2, y: y2, lx: x2, ly: y2, face: rnd(TAU), F: newField(), idx: j, type: t2, tr: t2.tr, think: j * 0.07 }));
+    G.Ks.push(Object.assign({}, G.K, { x: x2, y: y2, lx: x2, ly: y2, face: rnd(TAU), F: newField(), idx: j, type: t2, tr: t2.tr, think: j * 0.07, dn: [0, 0, 0, 0] }));
   }
   const NCL = CLASSES.length, pcl = (opt.cls >= 0 && opt.cls < NCL) ? opt.cls : (Math.random() * NCL) | 0, order = [pcl].concat(CLASSES.map(c => c.id).filter(c => c !== pcl).sort(() => Math.random() - 0.5));   // teammates get a random mix of the other roles
   if (opt.team) for (let i = 0; i < opt.team.length; i++) order[i + 1] = opt.team[i];
@@ -616,7 +622,7 @@ function newMatch(opt) {
   const HB = G.HB = { tr: [], vis: new Int32Array(N), stamp: 0 };
   for (const sv of G.surv) { const tr = new Tracker(G.hiq.mem ? BRAIN.lib[(sv.human && !G.autoplay) ? 0 : 1] : EMPTY_LIB); tr.genPrior = true; tr.tag = sv.cls.id & 3; tr.lost(0, 0, (x, y) => kNear(x, y) > (nH > 1 ? 32 : 42) ? 1 : 0.03); tr.estimate(); HB.tr.push(tr); }
   const SB = G.SB = { trs: [], seenK: [], vis: new Int32Array(N), stamp: 0, kf: newField(), kfT: -9 };          // the team keeps one belief per hunter
-  for (const k of G.Ks) { const tr = new Tracker(G.siq.mem ? BRAIN.lib[2] : EMPTY_LIB); tr.tag = k.type.id; tr.lost(0, 0, (x, y) => { let md = 1e9; for (const sv of G.surv) md = Math.min(md, hyp(x - sv.x, y - sv.y)); return md > (nH > 1 ? 30 : 42) ? 1 : 0.03; }); tr.estimate(); SB.trs.push(tr); SB.seenK.push(false); }
+  for (const k of G.Ks) { const tr = new Tracker(G.siq.mem ? BRAIN.lib[2] : EMPTY_LIB); tr.tag = k.type.id & 3; tr.lost(0, 0, (x, y) => { let md = 1e9; for (const sv of G.surv) md = Math.min(md, hyp(x - sv.x, y - sv.y)); return md > (nH > 1 ? 30 : 42) ? 1 : 0.03; }); tr.estimate(); SB.trs.push(tr); SB.seenK.push(false); }
   if (opt.tut) tutInit();
   return G;
 }
@@ -626,7 +632,7 @@ function newMatch(opt) {
    ===================================================================== */
 const subjOf = s => (s.human && !G.autoplay) ? 0 : 1;
 function hunterCtx(s) { return G.powered ? 3 : (G.t - G.seenT[s.id] < 8) ? 1 : G.surv.some(o => o.state === 'hooked') ? 2 : 0; }
-function survSpeed(s) { if (s.health === 2) return SPD.crawl; let v = s.crouch ? s.cls.crouchSpd : s.run ? (s.cls.run || SPD.run) : SPD.walk; if (s.boostT > 0) v *= 1.5; else if (s.hasteT > 0) v *= 1.1; return v; }
+function survSpeed(s) { if (s.health === 2) return SPD.crawl; let v = s.crouch ? s.cls.crouchSpd : s.run ? (s.cls.run || SPD.run) : SPD.walk; if (s.boostT > 0) v *= 1.5; else if (s.hasteT > 0) v *= 1.1; if (s.slowT > 0) v *= 0.75; if (s.snagT > 0) v *= s.snagF; return v; }
 function hbBand(s) { let b = 0; for (const K of G.Ks) { if (K.cloak) continue; const d = hyp(K.x - s.x, K.y - s.y), R = K.tr, q = d < R / 3 ? 3 : d < R * 2 / 3 ? 2 : d < R ? 1 : 0; if (q > b) b = q; } return b; }
 
 function kill(s, why) { const sl0 = s.hook && s.hook.slots[0]; s.dx = sl0 ? sl0.x : s.x; s.dy = sl0 ? sl0.y : s.y; if (s.hook) { s.hook.occ = null; s.hook.broken = hooks.filter(h => !h.broken).length > 4; s.hook = null; } for (const k of G.Ks) if (k.carry === s) k.carry = null; s.state = 'dead'; s.fate = why; s.action = null; ev('death', { s, x: s.x, y: s.y }); }
@@ -657,10 +663,16 @@ function dropPallet(p, by) {
   const side = (e) => { const o = p.axis === 0 ? e.x - p.x : e.y - p.y; return o >= 0 ? 1 : -1; };
   const push = (e) => { if (Math.abs(e.x - p.x) < T / 2 + e.r && Math.abs(e.y - p.y) < T / 2 + e.r) { const sd = side(e); if (p.axis === 0) { e.x = p.x + sd * (T / 2 + e.r + 0.05); e.y = p.y; } else { e.y = p.y + sd * (T / 2 + e.r + 0.05); e.x = p.x; } } };
   for (const s of G.surv) if (s.state === 'free') push(s);
-  for (const K of G.Ks) { if (hyp(K.x - p.x, K.y - p.y) < 1.75 && K.st !== 'stun') { stunKiller(K.type.stun + ((by && by.cls.stunBonus) || 0), K); ev('stun', { x: K.x, y: K.y }); } push(K); }
+  for (const K of G.Ks) { if (!K.dead && hyp(K.x - p.x, K.y - p.y) < 1.75 && K.st !== 'stun') { if (K.type.troupe && dancerAbsorb(K)) ev('dancerdown', { x: K.x, y: K.y, K }); else if (stunKiller(K.type.stun + ((by && by.cls.stunBonus) || 0), K)) ev('stun', { x: K.x, y: K.y }); else ev('clang', { x: K.x, y: K.y, K }); } push(K); }
   if (by && !G.sees[by.id]) hbNoise(p.x, p.y, 5, 8, by);
 }
-function stunKiller(t, K) { K = K || G.K; if (K.carry) { const s = K.carry; K.carry = null; s.state = 'free'; s.health = 1; s.healP = 0; s.boostT = 1.5; s.pc = -1; const n = walkNear(K.x, K.y, false); s.x = (n % MW + .5) * T; s.y = (((n / MW) | 0) + .5) * T; ev('wiggle', { s }); } K.st = 'stun'; K.tmr = t; K.vault = null; }
+function stunKiller(t, K) {
+  K = K || G.K; const had = !!K.carry;
+  if (K.carry) { const s = K.carry; K.carry = null; s.state = 'free'; s.health = 1; s.healP = 0; s.boostT = 1.5; s.pc = -1; const n = walkNear(K.x, K.y, false); s.x = (n % MW + .5) * T; s.y = (((n / MW) | 0) + .5) * T; ev('wiggle', { s }); }
+  if (K.dg >= 0) { K.dg = -1; K.tr = K.type.tr; K.noShiftT = G.t + 10; }
+  if (K.type.nostun) { if (had) { K.st = 'cool'; K.tmr = 1.5; K.aim = null; } return false; }   // the Machine lets go, but nothing stops it
+  if (K.gl && K.lt) K.lt.snagT = 0; K.st = 'stun'; K.tmr = t; K.vault = null; K.aim = null; K.gl = null; K.grip = false; return true;
+}
 
 /* what the big button does right now, for a human player */
 function playerContext(s) {
@@ -699,9 +711,12 @@ function abilityInfo(s) {                                                // what
   if (c === 7) return { label: cd || 'Decoy', ready: s.abT <= 0 && !G.sees[s.id], frac: 1 - s.abT / 45 };
   return null;
 }
-function aimTarget(s) { let b = null, bd = 10.5; for (const K of G.Ks) { if (K.dead) continue; const d = hyp(K.x - s.x, K.y - s.y); if (d < bd && los(s.x, s.y, K.x, K.y)) { bd = d; b = K; } } return b; }
+function aimTarget(s) { let b = null, bd = 10.5; for (const K of G.Ks) { if (K.dead) continue; const d = hyp(K.x - s.x, K.y - s.y); if (d < bd && !(K.dg >= 0 && d > K.type.hb) && los(s.x, s.y, K.x, K.y)) { bd = d; b = K; } } return b; }
 function woundHunter(K, by) {
-  K.wounds = (K.wounds || 0) + 1; by.markedT = G.t + 25; ev('shot', { x: K.x, y: K.y, K }); G.HB.tr[by.id].pin(by.x, by.y, 0, 0);   // the shot gives the shooter away
+  by.markedT = G.t + 25; G.HB.tr[by.id].pin(by.x, by.y, 0, 0);            // the shot gives the shooter away
+  if (K.type.troupe && dancerAbsorb(K)) { ev('dancerdown', { x: K.x, y: K.y, K }); return; }
+  if (K.type.nokill) { K.beamCd = 40; if (K.st === 'aim') { K.st = 'cool'; K.tmr = 0.6; } K.aim = null; stunKiller(0, K); ev('boltoff', { x: K.x, y: K.y, K }); return; }
+  K.wounds = (K.wounds || 0) + 1; ev('shot', { x: K.x, y: K.y, K });
   if (K.wounds >= 4) killHunter(K); else stunKiller(6.5, K);
 }
 function killHunter(K) {
@@ -782,7 +797,7 @@ function doAction(s, dt) {
 }
 function updateSurv(s, dt) {
   if (s.state === 'dead' || s.state === 'escaped') return;
-  if (s.boostT > 0) s.boostT -= dt; if (s.hasteT > 0) s.hasteT -= dt; if (s.endT > 0) s.endT -= dt; if (s.lockT > 0) s.lockT -= dt; if (s.heldT > 0) s.heldT -= dt; if (s.abT > 0) s.abT -= dt;
+  if (s.boostT > 0) s.boostT -= dt; if (s.hasteT > 0) s.hasteT -= dt; if (s.endT > 0) s.endT -= dt; if (s.lockT > 0) s.lockT -= dt; if (s.heldT > 0) s.heldT -= dt; if (s.abT > 0) s.abT -= dt; if (s.slowT > 0) s.slowT -= dt; if (s.snagT > 0) s.snagT -= dt;
   s.vx = s.vy = 0; s.moving = false;
   if (s.state === 'hooked') { s.hookT -= dt; if (!G.anyUp) { kill(s, 'sacrificed'); return; } if (s.hookT <= 0) { s.stage++; if (s.stage >= 3) kill(s, 'sacrificed'); else { s.hookT = HOOK_STAGE; ev('struggle', { s }); } } return; }
   if (s.state === 'carried') { const K = s.carrier || G.K; s.x = K.x; s.y = K.y; s.wig += dt / 16; if (s.wig >= 1) { stunKiller(1.5, K); } return; }
@@ -883,7 +898,7 @@ function botAct(s, dt) {
   else if (g.type === 'selfheal') { if (!s.action) useAbility(s); return; }
   else if (g.type === 'wait') return;
   let w = steerPath(s, false);
-  if (!w) { const fp = g.slot || (g.type === 'heal' ? g.ref : g.type === 'gate' ? { x: g.ref.sx, y: g.ref.sy } : g.type === 'hatch' ? g.ref : null); if (!fp) return; w = fp; }
+  if (!w) { const fp = g.slot || (g.type === 'heal' ? g.ref : g.type === 'gate' ? { x: g.ref.sx, y: g.ref.sy } : g.type === 'hatch' ? g.ref : null); if (!fp) return; w = { x: fp.x, y: fp.y }; }
   if (w.vault) { startVault(s, w.vault, flee); s.pi++; return; }
   const d = hyp(w.x - s.x, w.y - s.y); if (d < 0.02) return;
   s.ix = (w.x - s.x) / d; s.iy = (w.y - s.y) / d;
@@ -896,6 +911,16 @@ function botAct(s, dt) {
 /* =====================================================================
    THE HUNTER
    ===================================================================== */
+/* ---------- the four stranger hunters: what their powers need that the others do not ---------- */
+function dancerPos(K, i, t) { const a = t * 1.5 + i * Math.PI / 2, r = K.st === 'pose' ? 2.6 : 2.1; return { x: K.x + Math.cos(a) * r, y: K.y + Math.sin(a) * r }; }   // the Dancer's troupe circles it
+function dancerAbsorb(K) { for (let i = 0; i < 4; i++) if (G.t >= K.dn[i]) { K.dn[i] = G.t + 45; return true; } return false; }                                          // one of them takes the hit and sits out
+function pickFace(K) {                                                   // the Shapeshifter copies someone other than the survivor it thinks is nearest
+  const c = G.surv.filter(s => s.state === 'free' && s.health < 2 && !s.ghost); if (!c.length) return -1;
+  let near = null, nd = 1e9; for (const s of c) { const e = G.HB.tr[s.id].est, d = hyp(e.x - K.x, e.y - K.y); if (d < nd) { nd = d; near = s; } }
+  const pool = c.length > 1 ? c.filter(s => s !== near) : c; return pool[(Math.random() * pool.length) | 0].id;
+}
+const kfx = k => { if (k.type.id < 3) return 0; const r = v => Math.round(v * 10) / 10, q = o => o ? [r(o.x), r(o.y), Math.round(o.p * 100) / 100] : 0; let mask = 0; for (let i = 0; i < 4; i++) if (G.t >= k.dn[i]) mask |= 1 << i; return [k.dg, mask, q(k.aim), q(k.gl)]; };   // what a friend's device needs in order to draw them
+function kfxSet(k, a) { if (!a) return; const q = o => o ? { x: o[0], y: o[1], p: o[2] } : null; k.dg = a[0]; k.tr = k.dg >= 0 ? k.type.hb : k.type.tr; for (let i = 0; i < 4; i++) k.dn[i] = (a[1] >> i) & 1 ? 0 : 1e9; k.aim = q(a[2]); k.gl = q(a[3]); }
 function killerPerceive() {
   for (const s of G.surv) {
     let seen = false;
@@ -905,7 +930,7 @@ function killerPerceive() {
 }
 function killerThink() {
   const K = G.K; if (K.st !== 'free') return;
-  const F = K.F; field(F, tidx(K.x, K.y), true, 0);
+  const F = K.F; FIELD_NOWIN = !!K.type.nowin; FIELD_FLOW = !!K.type.flow; field(F, tidx(K.x, K.y), true, 0); FIELD_NOWIN = FIELD_FLOW = false;
   if (K.carry) {
     let bh = null, bs = null, bd = 1e9; for (const h of hooks) { if (h.occ || h.broken) continue; for (const sl of h.slots) if (F.d[sl.n] < bd) { bd = F.d[sl.n]; bh = h; bs = sl; } }
     K.goal = bh ? { type: 'hook', ref: bh, slot: bs } : null; if (bh) setPath(K, F, bs.n); K.chase = null; return;
@@ -932,7 +957,7 @@ function killerThink() {
   else { for (const g of gates) if (!g.open) patrol(g, [{ n: g.sn, x: g.sx, y: g.sy }], false); if (radio && !radio.done) patrol(radio, [radio], false); }
   if (G.hatch && K.knowsHatch && !(best && best.seen)) { const n = walkNear(G.hatch.x, G.hatch.y, true), u = 0.5 / (F.d[n] * T / SPD.killer + 1); if (u > bu) { bu = u; best = { type: 'hatch', ref: G.hatch, n }; } }
   K.goal = best; if (best) setPath(K, F, best.n); else K.path = null;
-  K.chase = (best && best.type === 'chase' && (best.seen || (K.chase === best.ref && G.t - K.seenT[best.ref.id] < 3))) ? best.ref : null; if (K.cloak) K.chase = null;
+  K.chase = (best && best.type === 'chase' && (best.seen || (K.chase === best.ref && G.t - K.seenT[best.ref.id] < 3))) ? best.ref : null; if (K.cloak || K.dg >= 0) K.chase = null;
 }
 function hitSurv(s) {
   const K = G.K; K.st = 'cool'; K.tmr = K.type.cool; K.bl = 0; G.stats.hits++;
@@ -947,6 +972,10 @@ function hookSurv(s, h) {
 }
 function killerAct(dt) {
   const K = G.K, ox = K.x, oy = K.y;
+  if (K.type.troupe) for (let i = 0; i < 4; i++) {                       // anyone a backup dancer brushes against is dazzled
+    if (G.t < K.dn[i]) continue; const q = dancerPos(K, i, G.t); if (solidK(tX(q.x), tX(q.y))) continue;
+    for (const s of G.surv) if (s.state === 'free' && s.health < 2 && !s.ghost && hyp(s.x - q.x, s.y - q.y) < K.type.daz) { if (!(s.slowT > 0)) ev('dazzle', { s, x: s.x, y: s.y }); s.slowT = 2.5; }
+  }
   if (K.st !== 'free') {
     K.tmr -= dt;
     if (K.st === 'lunge') {
@@ -962,8 +991,27 @@ function killerAct(dt) {
       else if (hyp(K.x - bx, K.y - by) < 9.2 * dt * 0.45) { K.st = 'stun'; K.tmr = 1.6; K.chargeCd = 9; ev('crash', { x: K.x, y: K.y }); }
       else if (K.tmr <= 0) { K.st = 'cool'; K.tmr = 0.9; K.chargeCd = 9; }
     }
+    else if (K.st === 'aim') {                                             // the Machine's beam: it has to keep its target in view for the whole warm-up
+      const s = K.lt; K.face = Math.atan2(s.y - K.y, s.x - K.x); K.aim = { x: s.x, y: s.y, p: clamp(1 - K.tmr / K.type.warm, 0, 1) };
+      if (K.tmr <= 0) {
+        const ok = s.state === 'free' && s.health === 0 && hyp(s.x - K.x, s.y - K.y) < 17 && los(K.x, K.y, s.x, s.y); K.aim = null; K.st = 'cool'; K.tmr = 0.7;
+        if (!ok) { K.beamCd = K.type.beamMiss; ev('beammiss', { x: K.x, y: K.y }); }
+        else { K.beamCd = K.type.beamHit; ev('beam', { x: K.x, y: K.y, s }); if (s.endT > 0) { s.endT = 0; s.boostT = 1.8; ev('endure', { s, x: s.x, y: s.y }); } else { s.health = 1; s.action = null; s.boostT = s.cls.hitBoost; G.stats.hits++; ev('hit', { s, x: s.x, y: s.y }); } }
+      }
+    }
+    else if (K.st === 'reach') {                                           // the Elastoman's arm on its way out
+      const s = K.lt; K.face = Math.atan2(s.y - K.y, s.x - K.x); K.gl = { x: s.x, y: s.y, p: clamp(1 - K.tmr / K.type.reachT, 0, 1) };
+      if (K.tmr <= 0) {
+        const d = hyp(s.x - K.x, s.y - K.y), ok = s.state === 'free' && d < 17 && d > 0.5 && los(K.x, K.y, s.x, s.y); K.grapCd = K.type.grapCd;
+        if (!ok) { K.gl = null; K.st = 'cool'; K.tmr = K.type.tangle; ev('grapmiss', { x: K.x, y: K.y }); }
+        else { const n = walkNear(s.x - (s.x - K.x) / d * 2.2, s.y - (s.y - K.y) / d * 2.2, true), x1 = (n % MW + .5) * T, y1 = (((n / MW) | 0) + .5) * T, dur = Math.max(0.25, hyp(x1 - K.x, y1 - K.y) / K.type.flingV); K.fl = { x0: K.x, y0: K.y, x1, y1, dur }; K.st = 'fling'; K.tmr = dur; K.gl = { x: s.x, y: s.y, p: 1 }; if (K.type.snag < 1) { s.snagT = dur + K.type.gather; s.snagF = K.type.snag; } ev('fling', { x: K.x, y: K.y, s }); }
+      }
+    }
+    else if (K.st === 'fling') { const v = K.fl, f = 1 - clamp(K.tmr / v.dur, 0, 1), s = K.lt; K.x = lerp(v.x0, v.x1, f); K.y = lerp(v.y0, v.y1, f); K.gl = { x: s.x, y: s.y, p: 1 }; if (K.tmr <= 0) { K.st = 'cool'; K.tmr = K.type.gather; K.grip = true; } }   // ...and hauling itself in, hand still clamped on; then a moment to gather itself
+    else if (K.st === 'cool' && K.grip && K.tmr > 0) { const s = K.lt; if (s.state === 'free' && s.snagT > 0) K.gl = { x: s.x, y: s.y, p: 1 }; else { K.gl = null; K.grip = false; } }
     else if (K.tmr <= 0) {
-      const st = K.st, a = K.act; K.st = 'free'; K.think = 0;
+      const st = K.st, a = K.act; K.st = 'free'; K.think = 0; if (K.grip) { K.grip = false; K.gl = null; }
+      if (st === 'morph') { K.dg = pickFace(K); if (K.dg >= 0) K.tr = K.type.hb; } else if (st === 'reveal') { K.dg = -1; K.tr = K.type.tr; K.surge = K.type.surgeT; K.noShiftT = G.t + 10; }
       if (st === 'cloaking') K.cloak = true; else if (st === 'uncloak') { K.cloak = false; K.surge = 1.2; }
       if (st === 'break') { const p = a; if (p.state === 'down') { p.state = 'gone'; tiles[p.n] = FLOOR; ev('break', { x: p.x, y: p.y }); if (G.surv.some(s => inPlay(s) && hyp(s.x - p.x, s.y - p.y) < 30)) sbKnown(); } }
       else if (st === 'kick') { const g = a; if (!g.done) { g.p = Math.max(0, g.p - 4.5); g.regress = g.p > 0; g.seenP = g.p; g.seenReg = true; ev('kick', { x: g.x, y: g.y }); } }
@@ -978,9 +1026,12 @@ function killerAct(dt) {
     if ((g.type === 'chase' || g.type === 'pickup') && K.sees[g.ref.id]) {
       const s = g.ref, d = hyp(s.x - K.x, s.y - K.y);
       if (K.cloak && d < (g.type === 'pickup' ? 2.5 : 9)) { K.st = 'uncloak'; K.tmr = 1.4; ev('bell', { x: K.x, y: K.y }); if (G.surv.some(o => inPlay(o) && hyp(o.x - K.x, o.y - K.y) < 26)) sbKnown(); return; }
+      if (K.dg >= 0 && d < (g.type === 'pickup' ? 2.5 : K.type.revealD)) { K.st = 'reveal'; K.tmr = K.type.revealT; ev('snarl', { x: K.x, y: K.y }); sbKnown(K); return; }   // the Shapeshifter has to show itself before it can strike
+      if (K.type.beam && g.type === 'chase' && K.beamCd <= 0 && s.health === 0 && s.state === 'free' && d > 4.5 && d < 15) { K.st = 'aim'; K.tmr = K.type.warm; K.lt = s; K.aim = { x: s.x, y: s.y, p: 0 }; ev('beamaim', { x: K.x, y: K.y }); sbKnown(K); return; }
+      if (K.type.grapple && g.type === 'chase' && K.grapCd <= 0 && s.state === 'free' && !s.vault && d > 7 && d < 15) { K.st = 'reach'; K.tmr = K.type.reachT; K.lt = s; K.gl = { x: s.x, y: s.y, p: 0 }; ev('reach', { x: K.x, y: K.y }); sbKnown(K); return; }
       if (K.type.id === 2 && g.type === 'chase' && K.chargeCd <= 0 && d > 7 && d < 26 && s.state === 'free' && !s.vault && walkClear(K.x, K.y, s.x, s.y, true)) { K.st = 'windup'; K.tmr = 0.6; K.lt = s; ev('roar', { x: K.x, y: K.y }); sbKnown(); return; }
       if (g.type === 'pickup' && d < 1.5) { K.st = 'pickup'; K.tmr = 2.6; K.act = s; return; }
-      if (g.type === 'chase' && !K.cloak && d < G.hiq.lunge && s.state === 'free' && !s.vault && walkClear(K.x, K.y, s.x, s.y, true)) { K.st = 'lunge'; K.tmr = 0.4; K.lt = s; ev('lunge', { x: K.x, y: K.y }); return; }
+      if (g.type === 'chase' && !K.cloak && K.dg < 0 && d < G.hiq.lunge && s.state === 'free' && !s.vault && walkClear(K.x, K.y, s.x, s.y, true)) { K.st = 'lunge'; K.tmr = 0.4; K.lt = s; ev('lunge', { x: K.x, y: K.y }); return; }
       const lead = Math.min(d / SPD.killer, 0.7) * G.hiq.lead, ax = s.x + s.vx * lead, ay = s.y + s.vy * lead;
       if (walkClear(K.x, K.y, ax, ay, true)) { tx = ax; ty = ay; } else if (walkClear(K.x, K.y, s.x, s.y, true)) { tx = s.x; ty = s.y; }
     }
@@ -991,8 +1042,10 @@ function killerAct(dt) {
       const w = steerPath(K, true);
       if (w && w.vault) {
         const v = w.vault, mid = (tidx(K.x, K.y) + v.n) >> 1;
-        if (v.via === 2) { const p = palAt.get(mid); if (p && p.state === 'down') { K.st = 'break'; K.tmr = K.type.brk; K.act = p; K.face = Math.atan2(p.y - K.y, p.x - K.x); return; } K.think = 0; }
-        else { K.st = 'vault'; K.tmr = 1.7; K.vault = { x0: K.x, y0: K.y, x1: v.x, y1: v.y, dur: 1.7 }; K.face = Math.atan2(v.y - K.y, v.x - K.x); K.pi++; return; }
+        const pal = v.via === 2 ? palAt.get(mid) : null;
+        if (v.via === 2 && !(pal && pal.state === 'down')) K.think = 0;
+        else if (v.via === 2 && !K.type.flow) { K.st = 'break'; K.tmr = K.type.brk; K.act = pal; K.face = Math.atan2(pal.y - K.y, pal.x - K.x); return; }
+        else { const du = K.type.flow ? (v.via === 2 ? 0.6 : 0.5) : 1.7; K.st = 'vault'; K.tmr = du; K.vault = { x0: K.x, y0: K.y, x1: v.x, y1: v.y, dur: du }; K.face = Math.atan2(v.y - K.y, v.x - K.x); K.pi++; return; }   // the Elastoman pours over both without stopping
       } else if (w) { tx = w.x; ty = w.y; }
       else if (g.slot) { tx = g.slot.x; ty = g.slot.y; }
       else if (g.type === 'hatch') { tx = g.ref.x; ty = g.ref.y; }
@@ -1000,11 +1053,13 @@ function killerAct(dt) {
   }
   if (tx !== null) {
     const d = hyp(tx - K.x, ty - K.y);
-    if (d > 0.05) { const sp = (K.carry ? SPD.carry : K.cloak ? 5.4 : K.surge > 0 ? 6.0 : K.type.speed) * (1 + 0.05 * (K.wounds || 0)) + (K.chase ? Math.min(0.4, K.bl * 0.2) : 0); moveEnt(K, (tx - K.x) / d * sp * dt, (ty - K.y) / d * sp * dt, true); K.face += clamp(angDiff(Math.atan2(ty - K.y, tx - K.x), K.face), -9 * dt, 9 * dt); }
+    if (d > 0.05) { const sp = (K.carry ? SPD.carry : K.cloak ? 5.4 : K.dg >= 0 ? 4.0 : K.surge > 0 ? 6.0 : K.type.speed) * (1 + 0.05 * (K.wounds || 0)) + (K.chase ? Math.min(K.type.blMax || 0.4, K.bl * (K.type.blMax ? 0.35 : 0.2)) : 0); moveEnt(K, (tx - K.x) / d * sp * dt, (ty - K.y) / d * sp * dt, true); K.face += clamp(angDiff(Math.atan2(ty - K.y, tx - K.x), K.face), -9 * dt, 9 * dt); }
   } else K.face += 1.7 * dt * K.scan;
   if (K.chase) { K.bl = Math.min(2, K.bl + dt / 15 * K.type.bl); if (K.chase.isPlayer) G.stats.chase += dt; } else K.bl = 0;   // bloodlust: a long chase slowly speeds the hunter up
   K.vx = (K.x - ox) / dt; K.vy = (K.y - oy) / dt;
-  if (K.surge > 0) K.surge -= dt; if (K.chargeCd > 0) K.chargeCd -= dt;
+  if (K.surge > 0) K.surge -= dt; if (K.chargeCd > 0) K.chargeCd -= dt; if (K.beamCd > 0) K.beamCd -= dt; if (K.grapCd > 0) K.grapCd -= dt;
+  if (K.type.shift && K.dg < 0 && !K.carry) { K.unseenT = K.sees.some(v => v) ? 0 : K.unseenT + dt; if (K.unseenT > 4 && G.t > K.noShiftT && !(g && g.type === 'pickup')) { K.st = 'morph'; K.tmr = 1.2; K.unseenT = 0; } }   // nobody in sight for a while: put on a face
+  if (K.type.troupe && K.st === 'free') { K.beatT += dt; if (K.beatT >= K.type.beat) { K.beatT = 0; K.st = 'pose'; K.tmr = K.type.poseT; ev('pose', { x: K.x, y: K.y }); } }                                                               // the Dancer has to hit its mark
   if (K.type.id === 1 && !K.cloak && !K.carry) { K.unseenT = K.sees.some(v => v) ? 0 : K.unseenT + dt; if (K.unseenT > 3 && !(g && g.type === 'pickup')) { K.st = 'cloaking'; K.tmr = 1.0; K.unseenT = 0; ev('cloak', { x: K.x, y: K.y }); } }
   K.stuckT += dt; if (K.stuckT > 1.5) { if (tx !== null && hyp(K.x - K.lx, K.y - K.ly) < 0.4) { const a = rnd(TAU); moveEnt(K, Math.cos(a) * 0.4, Math.sin(a) * 0.4, true); K.think = 0; K.scan = -K.scan; } K.stuckT = 0; K.lx = K.x; K.ly = K.y; }
 }
@@ -1059,7 +1114,7 @@ function sbObs() {
   const SB = G.SB, ph = phaseNow(), vis = SB.vis, st = ++SB.stamp; let anyUnseen = false;
   G.Ks.forEach((K, k) => {
     if (K.dead) { SB.seenK[k] = true; return; }
-    let seen = !!K.carry; for (const s of G.surv) if (!seen && inPlay(s) && hyp(K.x - s.x, K.y - s.y) < (K.cloak ? 14 : 36) && los(s.x, s.y, K.x, K.y)) seen = true;
+    let seen = !!K.carry; for (const s of G.surv) if (!seen && inPlay(s) && hyp(K.x - s.x, K.y - s.y) < (K.cloak ? 14 : K.dg >= 0 ? K.type.hb : 36) && los(s.x, s.y, K.x, K.y)) seen = true;
     SB.seenK[k] = seen; const tr = SB.trs[k];
     if (seen) { sbKnown(K); tr.est.seen = true; } else { anyUnseen = true; if (tr.pinned) { const p = tr.pinned; tr.known(p.x, p.y, p.vx, p.vy, killerCtx(K), ph); tr.pinned = null; } }
   });
@@ -1069,11 +1124,11 @@ function sbObs() {
   for (const s of G.surv) {                                                                           // the heartbeat is a range reading: three loudness bands, from whichever hunter is loudest
     if (!inPlay(s)) continue; let band = 0, R = TERROR, explained = false;
     for (const K of G.Ks) { if (K.cloak) continue; const d = hyp(K.x - s.x, K.y - s.y), q = d < K.tr / 3 ? 3 : d < K.tr * 2 / 3 ? 2 : d < K.tr ? 1 : 0; if (q > band) { band = q; R = K.tr; explained = SB.seenK[K.idx]; } }
-    if (band === 0) { G.Ks.forEach((K, k) => { if (!SB.seenK[k] && K.type.id !== 1) SB.trs[k].band(s.x, s.y, K.tr, 1e9); }); continue; }   // silence rules every hunter out nearby (except a Shade)
+    if (band === 0) { G.Ks.forEach((K, k) => { if (!SB.seenK[k] && K.type.id !== 1 && !K.type.quiet) SB.trs[k].band(s.x, s.y, K.type.tr, 1e9); }); continue; }   // silence rules every hunter out nearby (except the two that can go quiet)
     if (explained) continue;
     const lo = band === 1 ? R * 2 / 3 : band === 2 ? R / 3 : 0, hi = band === 1 ? R : band === 2 ? R * 2 / 3 : R / 3;
     let bk = -1, bm = -1; G.Ks.forEach((K, k) => { if (SB.seenK[k]) return; const m = SB.trs[k].massNear(s.x, s.y, hi + 2); if (m > bm) { bm = m; bk = k; } });
-    G.Ks.forEach((K, k) => { if (SB.seenK[k]) return; const loK = band === 1 ? K.tr * 2 / 3 : band === 2 ? K.tr / 3 : 0; if (k === bk) SB.trs[k].band(s.x, s.y, lo, hi); else if (loK > 0 && K.type.id !== 1) SB.trs[k].band(s.x, s.y, loK, 1e9); });   // blame the likeliest hunter
+    G.Ks.forEach((K, k) => { if (SB.seenK[k]) return; const loK = band === 1 ? K.tr * 2 / 3 : band === 2 ? K.tr / 3 : 0; if (k === bk) SB.trs[k].band(s.x, s.y, lo, hi); else if (loK > 0 && K.type.id !== 1 && !K.type.quiet) SB.trs[k].band(s.x, s.y, loK, 1e9); });   // blame the likeliest hunter
   }
   G.Ks.forEach((K, k) => { if (!SB.seenK[k]) SB.trs[k].finish(killerCtx(K), ph, (x, y) => vis[tidx(x, y)] === st ? 0.02 : 1); });
 }
@@ -1087,7 +1142,7 @@ function referee() {
     const R = G.rec[s.id]; R.x.push(q(s.x)); R.y.push(q(s.y)); R.m.push(hunterCtx(s) | (ph << 2) | ((s.cls.id & 3) << 5) | (s.pc < 0 ? 128 : 0)); s.pc = 1;
     if (G.t - K.seenT[s.id] > 3) { const e = G.HB.tr[s.id].est, err = hyp(e.x - s.x, e.y - s.y); A.hS += err; A.hN++; if (G.t - K.seenT[s.id] < 25) { A.shS += err; A.shN++; } if (err < 8) A.hHit++; if (s.isPlayer) { A.yS += err; A.yN++; if (err < 8) A.yHit++; } }
   }
-  G.Ks.forEach((K, k) => { if (K.dead) return; const R = G.rec[G.surv.length + k]; R.x.push(q(K.x)); R.y.push(q(K.y)); R.m.push(killerCtx(K) | (ph << 2) | (K.type.id << 5) | (K.pc < 0 ? 128 : 0)); K.pc = 1; if (!G.SB.seenK[k]) { const e = G.SB.trs[k].est; A.sS += hyp(e.x - K.x, e.y - K.y); A.sN++; } });
+  G.Ks.forEach((K, k) => { if (K.dead) return; const R = G.rec[G.surv.length + k]; R.x.push(q(K.x)); R.y.push(q(K.y)); R.m.push(killerCtx(K) | (ph << 2) | ((K.type.id & 3) << 5) | (K.pc < 0 ? 128 : 0)); K.pc = 1; if (!G.SB.seenK[k]) { const e = G.SB.trs[k].est; A.sS += hyp(e.x - K.x, e.y - K.y); A.sN++; } });
   const p = G.surv[0]; if (p.state === 'free' && G.replay.length < 1500) { const e = G.HB.tr[0].est; G.replay.push([p.x, p.y, e.x, e.y, K.sees[0] ? 1 : 0]); }
 }
 function finishMatch() {
@@ -1261,7 +1316,7 @@ function step(dt) {
 }
 function runToEnd(maxSteps) { let n = 0; while (!G.over && n++ < (maxSteps || 60000)) { step(1 / 30); G.events.length = 0; } return G.result; }
 
-if (HEADLESS) module.exports = { TUT, TUT_AT, field, newField, pathTo, playerContext, los, get gates() { return gates; }, abilityInfo, CLASSES, HUNTERS, newMatch, step, runToEnd, newBrain, encLibs, decLibs, MAPS, HIQ, SIQ, Tracker, get G() { return G; }, get BRAIN() { return BRAIN; }, set BRAIN(b) { BRAIN = b; }, get tiles() { return tiles; }, get gens() { return gens; }, get hooks() { return hooks; }, get pallets() { return pallets; }, get windows() { return windows; }, MW, MH, connected, buildMap, INPUT };
+if (HEADLESS) module.exports = { kfx, kfxSet, dancerPos, TUT, TUT_AT, field, newField, pathTo, playerContext, los, get gates() { return gates; }, abilityInfo, CLASSES, HUNTERS, newMatch, step, runToEnd, newBrain, encLibs, decLibs, MAPS, HIQ, SIQ, Tracker, get G() { return G; }, get BRAIN() { return BRAIN; }, set BRAIN(b) { BRAIN = b; }, get tiles() { return tiles; }, get gens() { return gens; }, get hooks() { return hooks; }, get pallets() { return pallets; }, get windows() { return windows; }, MW, MH, connected, buildMap, INPUT };
 
 /* =====================================================================
    DEAD RECKONING — screen, touch, sound
@@ -1316,6 +1371,17 @@ if (!HEADLESS) (function () {
       case 'death': AU.tone(65, 1.8, 'sawtooth', 0.3, 40); AU.noise(1.2, 0.2, 400); break;
       case 'healed': AU.tone(523, 0.2, 'sine', 0.15); break;
       case 'hatch': AU.tone(220, 1.2, 'sine', 0.15, 110); break;
+      case 'snarl': AU.tone(180, 0.5, 'sawtooth', 0.35 * v, 70); AU.noise(0.4, 0.3 * v, 900); break;
+      case 'beamaim': AU.tone(300, 1.15, 'sawtooth', 0.14 * v, 1500); break;
+      case 'beam': AU.tone(1800, 0.22, 'square', 0.3 * v, 240); AU.noise(0.2, 0.3 * v, 5000); break;
+      case 'beammiss': AU.noise(0.25, 0.14 * v, 2500); break;
+      case 'boltoff': case 'clang': AU.tone(520, 0.3, 'square', 0.22 * v, 480); AU.tone(790, 0.3, 'square', 0.12 * v, 0, 0.01); break;
+      case 'dancerdown': AU.tone(660, 0.12, 'triangle', 0.22 * v, 220); AU.noise(0.15, 0.25 * v, 2000); break;
+      case 'pose': AU.noise(0.09, 0.3 * v, 4500); AU.tone(196, 0.14, 'square', 0.16 * v); AU.noise(0.09, 0.3 * v, 4500, 0.25); break;
+      case 'dazzle': if (e.s && e.s.id === (G.me | 0)) { AU.tone(1568, 0.1, 'triangle', 0.18); AU.tone(1976, 0.14, 'triangle', 0.14, 0, 0.07); } break;
+      case 'reach': AU.tone(140, 0.65, 'sine', 0.22 * v, 520); break;
+      case 'fling': AU.noise(0.3, 0.3 * v, 3200); AU.tone(520, 0.25, 'sine', 0.16 * v, 130); break;
+      case 'grapmiss': AU.tone(300, 0.3, 'sine', 0.14 * v, 110); break;
       case 'bell': AU.tone(1568, 1.4, 'sine', 0.3 * v); AU.tone(2093, 1.1, 'sine', 0.16 * v, 0, 0.02); break;
       case 'cloak': AU.noise(0.7, 0.12 * v, 2600); break;
       case 'roar': AU.tone(96, 0.7, 'sawtooth', 0.4 * v, 58); AU.noise(0.6, 0.3 * v, 500); break;
@@ -1337,11 +1403,13 @@ if (!HEADLESS) (function () {
     hook: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' on a hook', unhook: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' off the hook',
     down: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' down', death: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' were ' : ' was ') + e.s.fate, escape: e => nm(e.s) + ' escaped',
     boltmiss: e => e.K.type.name + ' dodged the bolt', shot: e => e.K.type.name + ' is hit: ' + e.K.wounds + ' of 4 wounds', hunterdead: e => e.K.type.name + ' is dead', ritual: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' begin' : ' begins') + ' a ritual. The hunters felt it', revived: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' back from the dead, on a last life',
+    boltoff: e => 'The bolt glances off ' + e.K.type.name + '. Its beam is out for 40 seconds', clang: e => 'The pallet does not stop ' + e.K.type.name, dancerdown: () => 'A backup dancer took the hit', dazzle: e => (e.s.id === (G.me | 0)) ? 'Dazzled: you are slowed for a moment' : null, fling: e => (e.s && e.s.id === (G.me | 0)) ? 'Its hand has hold of you. You are slowed until it lets go' : null,
     hatch: () => 'Somewhere, the hatch has opened', hatchclose: () => 'The hatch was shut', tryfail: () => 'You slipped. ' + G.surv[G.me | 0].tries + ' tries left', wiggle: e => nm(e.s) + ' broke free'
   };
   function handleEvents(silent) {
     for (const e of G.events) {
       MP.ev(e); if (!silent) sfx(e);
+      if (e.type === 'beam' && e.s) fxList.push({ x0: e.x, y0: e.y, x1: e.s.x, y1: e.s.y, t: performance.now() / 1000 });
       const f = TOAST[e.type]; if (f) { const t = f(e); if (t) { toasts.push({ t, born: performance.now() / 1000 }); if (toasts.length > 4) toasts.shift(); } }
       if (!silent && !reduced && (e.type === 'hit' || e.type === 'down' || e.type === 'endure') && (e.s.id === (G.me | 0))) shake = 0.35;
     }
@@ -1349,7 +1417,7 @@ if (!HEADLESS) (function () {
   }
 
   /* ---------------- input ---------------- */
-  let joy = null; const keys = {};
+  let joy = null, beatT = 0, beatN = 0; const keys = {};
   const inCirc = (b, x, y) => hyp(x - b.x, y - b.y) <= b.r + 8;
   function press(x, y) {
     if (mode !== 'play' || !G) return true;
@@ -1438,25 +1506,56 @@ if (!HEADLESS) (function () {
     }
     cx.restore();
   }
+  const KLOOK = [['#121316', '#23262c', '#d9d2c2', 1], ['#2b3236', '#414c52', '#aeb9bd', 0.94], ['#2a1612', '#4d2a1d', '#c9a27e', 1.24],   // coat, top, head and size for each hunter
+    ['#1d1a22', '#3a3144', '#b9a9c9', 1], ['#3a3d40', '#5b6064', '#ffc45a', 1.2], ['#2a0f2e', '#b0237a', '#f2c9a0', 1], ['#10303a', '#1f6f7d', '#9fd6d2', 1]];
+  let fxList = [];
+  function drawFx(now) {                                                 // the Machine's beam, for a quarter of a second after it fires
+    fxList = fxList.filter(f => now - f.t < 0.28);
+    for (const f of fxList) { const a = 1 - (now - f.t) / 0.28; cx.lineCap = 'round'; cx.strokeStyle = 'rgba(255,170,60,' + (0.5 * a) + ')'; cx.lineWidth = 0.5; cx.beginPath(); cx.moveTo(f.x0, f.y0); cx.lineTo(f.x1, f.y1); cx.stroke(); cx.strokeStyle = 'rgba(255,244,214,' + a + ')'; cx.lineWidth = 0.14; cx.stroke(); }
+  }
   function drawKiller(K, now) {
-    const c = Math.cos(K.face), s = Math.sin(K.face), tp = K.type.id, sc = tp === 2 ? 1.24 : tp === 1 ? 0.94 : 1;
-    const coat = ['#121316', '#2b3236', '#2a1612'][tp], top = ['#23262c', '#414c52', '#4d2a1d'][tp];
+    if (K.dg >= 0 && G.surv[K.dg]) {                                     // the Shapeshifter in someone else's skin: drawn exactly as that survivor, bar a flicker every few seconds
+      drawSurv(Object.assign({}, G.surv[K.dg], { id: K.dg + 100, x: K.x, y: K.y, face: K.face, state: 'free', health: 0, crouch: false, action: null, endT: 0, moving: hyp(K.vx || 0, K.vy || 0) > 0.5 || K.tx !== undefined }), now);
+      if (K.st === 'reveal') { const f = (now * 1.8) % 1; cx.strokeStyle = 'rgba(225,40,30,' + (0.9 - 0.4 * f) + ')'; cx.lineWidth = 0.12; cx.beginPath(); cx.arc(K.x, K.y, 0.62 + 0.9 * f, 0, TAU); cx.stroke(); cx.fillStyle = 'rgba(225,40,30,' + (0.25 + 0.3 * f) + ')'; cx.beginPath(); cx.arc(K.x, K.y, 0.6, 0, TAU); cx.fill(); }   // the skin splitting: a red ring bursting outwards
+      else if ((now + K.idx * 1.3) % 4.2 < 0.14) { cx.strokeStyle = 'rgba(225,40,30,0.75)'; cx.lineWidth = 0.08; cx.beginPath(); cx.arc(K.x, K.y, 0.62, 0, TAU); cx.stroke(); }
+      return;
+    }
+    const c = Math.cos(K.face), s = Math.sin(K.face), tp = K.type.id, L = KLOOK[tp] || KLOOK[0], sc = L[3], strike = K.st === 'lunge' || K.st === 'charging';
     if (!K.cloak) { const g = cx.createRadialGradient(K.x + c * 1.3, K.y + s * 1.3, 0.2, K.x + c * 1.3, K.y + s * 1.3, 3.8); g.addColorStop(0, 'rgba(225,32,24,0.55)'); g.addColorStop(1, 'rgba(225,32,24,0)'); cx.fillStyle = g; cx.beginPath(); cx.moveTo(K.x, K.y); cx.arc(K.x, K.y, 4.8, K.face - 0.72, K.face + 0.72); cx.closePath(); cx.fill(); }   // the red stain
     if (K.st === 'charging' || K.st === 'windup') { cx.strokeStyle = 'rgba(230,120,60,0.5)'; cx.lineWidth = 0.14; for (let k = -1; k <= 1; k++) { cx.beginPath(); cx.moveTo(K.x - s * k * 0.4, K.y + c * k * 0.4); cx.lineTo(K.x - s * k * 0.4 - c * (K.st === 'charging' ? 3 : 0.8), K.y + c * k * 0.4 - s * (K.st === 'charging' ? 3 : 0.8)); cx.stroke(); } }
+    if (K.aim) { const a = K.aim; cx.lineCap = 'round'; cx.strokeStyle = 'rgba(255,196,90,' + (0.25 + 0.6 * a.p) + ')'; cx.lineWidth = 0.05 + 0.1 * a.p; cx.beginPath(); cx.moveTo(K.x + c * 0.5, K.y + s * 0.5); cx.lineTo(a.x, a.y); cx.stroke(); }   // the Machine's beam warming up
+    if (K.gl) { const a = K.gl, ex = K.x + (a.x - K.x) * a.p, ey = K.y + (a.y - K.y) * a.p; cx.lineCap = 'round'; cx.strokeStyle = '#9fd6d2'; cx.lineWidth = 0.2; cx.beginPath(); cx.moveTo(K.x, K.y); cx.lineTo(ex, ey); cx.stroke(); cx.fillStyle = '#c9ece8'; cx.beginPath(); cx.arc(ex, ey, 0.26, 0, TAU); cx.fill(); }   // the Elastoman's arm on its way out
+    if (K.type.troupe) for (let i = 0; i < 4; i++) {                     // the Dancer's troupe
+      if (G.t < K.dn[i]) continue; const q = dancerPos(K, i, G.t), up = K.st === 'pose', aa = now * 8 + i * 1.6, arm = up ? 0.62 : 0.42;
+      cx.fillStyle = 'rgba(0,0,0,0.35)'; cx.beginPath(); cx.ellipse(q.x + 0.06, q.y + 0.12, 0.4, 0.3, 0, 0, TAU); cx.fill();
+      cx.strokeStyle = i % 2 ? '#e23aa0' : '#22b8c9'; cx.lineWidth = 0.08; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(q.x - Math.cos(aa) * arm, q.y - Math.sin(aa) * arm); cx.lineTo(q.x + Math.cos(aa) * arm, q.y + Math.sin(aa) * arm); cx.stroke();
+      cx.fillStyle = i % 2 ? '#22b8c9' : '#e23aa0'; cx.beginPath(); cx.ellipse(q.x, q.y, 0.24, 0.36, K.face + (up ? 0.7 : Math.sin(now * 8 + i) * 0.3), 0, TAU); cx.fill(); cx.fillStyle = '#f2c9a0'; cx.beginPath(); cx.arc(q.x, q.y, 0.15, 0, TAU); cx.fill();
+    }
     cx.save(); cx.translate(K.x, K.y);
-    cx.globalAlpha = K.cloak ? 0.22 + 0.08 * Math.sin(now * 7) : (K.st === 'cloaking' || K.st === 'uncloak') ? 0.6 : 1;
+    cx.globalAlpha = K.cloak ? 0.22 + 0.08 * Math.sin(now * 7) : (K.st === 'cloaking' || K.st === 'uncloak' || K.st === 'morph' || K.st === 'reveal') ? 0.55 : 1;
     cx.fillStyle = 'rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(0.1, 0.18, 0.72 * sc, 0.56 * sc, 0, 0, TAU); cx.fill();
     if (K.st === 'stun') cx.rotate(Math.sin(now * 20) * 0.25);
+    if (K.st === 'pose') cx.rotate(Math.sin(now * 14) * 0.5);
     cx.rotate(K.face); cx.scale(sc, sc);
-    cx.fillStyle = coat; cx.beginPath(); cx.ellipse(-0.08, 0, 0.44, 0.68, 0, 0, TAU); cx.fill();
-    cx.fillStyle = top; cx.beginPath(); cx.ellipse(0, 0, 0.27, 0.62, 0, 0, TAU); cx.fill();
-    cx.strokeStyle = K.st === 'cool' ? '#8c2a22' : '#c3c7ca'; cx.lineWidth = tp === 2 ? 0.16 : 0.1; cx.lineCap = 'round'; cx.beginPath();
-    if (K.st === 'lunge' || K.st === 'charging') { cx.moveTo(0.25, 0.5); cx.lineTo(1.35, 0.18); } else if (K.st === 'cool') { const w = Math.sin(now * 10) * 0.2; cx.moveTo(0.2, 0.55); cx.lineTo(0.8, 0.2 + w); } else { cx.moveTo(0.1, 0.62); cx.lineTo(0.85, 0.74); }
-    cx.stroke();
-    if (tp === 2) { cx.fillStyle = '#6d7275'; cx.fillRect(K.st === 'lunge' || K.st === 'charging' ? 1.15 : 0.7, K.st === 'lunge' || K.st === 'charging' ? 0.0 : 0.56, 0.34, 0.36); }
-    if (K.carry) { cx.fillStyle = shade(K.carry.col, 0.7); cx.beginPath(); cx.ellipse(-0.1, -0.42, 0.5, 0.24, 0.3 + Math.sin(now * 12) * 0.12, 0, TAU); cx.fill(); }
-    cx.fillStyle = tp === 1 ? '#aeb9bd' : tp === 2 ? '#c9a27e' : COL.bone; cx.beginPath(); cx.arc(0.12, 0, tp === 1 ? 0.22 : 0.26, 0, TAU); cx.fill();
-    cx.fillStyle = '#0c0c0e'; cx.fillRect(0.2, -0.15, 0.12, 0.08); cx.fillRect(0.2, 0.07, 0.12, 0.08);
+    if (tp === 4) {                                                      // the Machine: a riveted box on two treads, with a lamp where a face would be
+      cx.fillStyle = '#232628'; cx.fillRect(-0.6, -0.74, 0.62, 0.22); cx.fillRect(-0.6, 0.52, 0.62, 0.22);
+      cx.fillStyle = L[0]; cx.fillRect(-0.52, -0.58, 1.0, 1.16); cx.fillStyle = L[1]; cx.fillRect(-0.4, -0.44, 0.72, 0.88);
+      cx.fillStyle = '#26292b'; for (const [rx, ry] of [[-0.33, -0.36], [-0.33, 0.3], [0.2, -0.36], [0.2, 0.3]]) cx.fillRect(rx, ry, 0.07, 0.07);
+      if (K.carry) { cx.fillStyle = shade(K.carry.col, 0.7); cx.beginPath(); cx.ellipse(-0.1, -0.42, 0.5, 0.24, 0.3 + Math.sin(now * 12) * 0.12, 0, TAU); cx.fill(); }
+      cx.fillStyle = L[2]; cx.beginPath(); cx.arc(0.34, 0, K.aim ? 0.18 + 0.1 * K.aim.p : 0.16, 0, TAU); cx.fill();
+    } else {
+      cx.fillStyle = L[0]; cx.beginPath(); cx.ellipse(-0.08, 0, 0.44, 0.68, 0, 0, TAU); cx.fill();
+      cx.fillStyle = L[1]; cx.beginPath(); cx.ellipse(0, 0, 0.27, 0.62, 0, 0, TAU); cx.fill();
+      cx.lineCap = 'round';
+      if (tp === 6) { cx.strokeStyle = L[2]; cx.lineWidth = 0.13; const w = Math.sin(now * 5) * 0.12, r = strike ? 1.3 : 0.75; cx.beginPath(); cx.moveTo(0.05, 0.6); cx.quadraticCurveTo(0.45, 0.85 + w, r, 0.5); cx.moveTo(0.05, -0.6); cx.quadraticCurveTo(0.45, -0.85 - w, r, -0.5); cx.stroke(); }   // the Elastoman has hands, not a blade
+      else { cx.strokeStyle = K.st === 'cool' ? '#8c2a22' : '#c3c7ca'; cx.lineWidth = tp === 2 ? 0.16 : 0.1; cx.beginPath(); if (strike) { cx.moveTo(0.25, 0.5); cx.lineTo(1.35, 0.18); } else if (K.st === 'cool') { const w = Math.sin(now * 10) * 0.2; cx.moveTo(0.2, 0.55); cx.lineTo(0.8, 0.2 + w); } else { cx.moveTo(0.1, 0.62); cx.lineTo(0.85, 0.74); } cx.stroke(); }
+      if (tp === 2) { cx.fillStyle = '#6d7275'; cx.fillRect(strike ? 1.15 : 0.7, strike ? 0.0 : 0.56, 0.34, 0.36); }
+      if (K.carry) { cx.fillStyle = shade(K.carry.col, 0.7); cx.beginPath(); cx.ellipse(-0.1, -0.42, 0.5, 0.24, 0.3 + Math.sin(now * 12) * 0.12, 0, TAU); cx.fill(); }
+      if (tp === 5) { cx.fillStyle = '#e23aa0'; cx.beginPath(); cx.arc(0.02, 0, 0.36, Math.PI * 0.42, Math.PI * 1.58); cx.fill(); }   // the Dancer's enormous hair
+      cx.fillStyle = L[2]; cx.beginPath(); cx.arc(0.12, 0, tp === 1 ? 0.22 : 0.26, 0, TAU); cx.fill();
+      if (tp === 5) { cx.strokeStyle = '#22b8c9'; cx.lineWidth = 0.07; cx.beginPath(); cx.arc(0.12, 0, 0.25, -1.1, 1.1); cx.stroke(); }                 // and headband
+      cx.fillStyle = '#0c0c0e'; cx.fillRect(0.2, -0.15, 0.12, 0.08); cx.fillRect(0.2, 0.07, 0.12, 0.08);
+    }
     cx.restore();
   }
   function edgeMark(wx, wy, col, label) {
@@ -1489,6 +1588,7 @@ if (!HEADLESS) (function () {
     for (const m of G.marks) { const a = 1 - (G.t - m.t) / m.life; if (a <= 0) continue; if (m.k === 1) { cx.fillStyle = 'rgba(150,18,14,' + (0.7 * a) + ')'; cx.beginPath(); cx.arc(m.x, m.y, 0.16, 0, TAU); cx.fill(); } else if (m.o === 0) { cx.strokeStyle = 'rgba(214,60,40,' + (0.32 * a) + ')'; cx.lineWidth = 0.07; cx.beginPath(); cx.moveTo(m.x - Math.cos(m.a) * 0.3, m.y - Math.sin(m.a) * 0.3); cx.lineTo(m.x + Math.cos(m.a) * 0.3, m.y + Math.sin(m.a) * 0.3); cx.stroke(); } }
     for (const s of G.surv) if (s.state === 'free' || s.state === 'hooked') drawSurv(s, now);
     for (const K of G.Ks) if (!K.dead && (!K.cloak || hyp(K.x - fx, K.y - fy) < 14)) drawKiller(K, now);
+    drawFx(now);
     cx.restore();
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (tiles[ty * MW + tx] === TREE) { const x = tx * T + 1, y = ty * T + 1, h = hash(tx, ty); cx.fillStyle = '#14281b'; cx.beginPath(); cx.arc(x, y, 1.42, 0, TAU); cx.fill(); cx.fillStyle = '#1b3423'; cx.beginPath(); cx.arc(x - 0.4 + h * 0.5, y - 0.35, 0.8, 0, TAU); cx.arc(x + 0.5, y + 0.3 + h * 0.3, 0.6, 0, TAU); cx.fill(); }
     // darkness outside line of sight
@@ -1499,6 +1599,7 @@ if (!HEADLESS) (function () {
     for (const s of G.surv) { if (s === focus) continue; const hooked = s.state === 'hooked', dying = s.state === 'free' && s.health === 2; if (!hooked && !dying) continue; cx.strokeStyle = hooked ? 'rgba(235,70,50,' + (0.6 + 0.3 * Math.sin(now * 5)) + ')' : 'rgba(235,150,60,0.8)'; cx.lineWidth = 0.1; cx.beginPath(); cx.arc(s.x, s.y, 0.9 + 0.12 * Math.sin(now * 5), 0, TAU); cx.stroke(); cx.fillStyle = cx.strokeStyle; cx.beginPath(); cx.ellipse(s.x, s.y, 0.3, 0.45, 0, 0, TAU); cx.fill(); }
     for (const s of G.surv) {
       if (s.state === 'dead' && s.dx !== undefined && s.fate !== 'taken by the collapse') { const live = G.surv.some(o => o.cls.id === 4 && o.stage < 2 && inPlay(o)); cx.strokeStyle = live ? 'rgba(185,163,230,' + (0.6 + 0.25 * Math.sin(now * 3)) + ')' : 'rgba(150,150,150,0.4)'; cx.lineWidth = 0.12; cx.beginPath(); cx.moveTo(s.dx, s.dy - 0.6); cx.lineTo(s.dx, s.dy + 0.6); cx.moveTo(s.dx - 0.4, s.dy - 0.2); cx.lineTo(s.dx + 0.4, s.dy - 0.2); cx.stroke(); if (live) { cx.beginPath(); cx.arc(s.dx, s.dy, 1.0, 0, TAU); cx.stroke(); } }
+      if (s.slowT > 0 && s.state === 'free' && (s === p || canSee(s))) { cx.strokeStyle = 'rgba(226,58,160,' + (0.5 + 0.3 * Math.sin(now * 12)) + ')'; cx.lineWidth = 0.08; cx.setLineDash([0.2, 0.2]); cx.beginPath(); cx.arc(s.x, s.y, 0.75, 0, TAU); cx.stroke(); cx.setLineDash([]); }   // dazzled
       if (s.decoy && s === p) { cx.strokeStyle = 'rgba(217,210,194,0.5)'; cx.lineWidth = 0.08; cx.setLineDash([0.25, 0.25]); cx.beginPath(); cx.arc(s.decoy.x, s.decoy.y, 0.5, 0, TAU); cx.stroke(); cx.setLineDash([]); }
       if (s.state === 'free' && s.action && s.action.type === 'aim' && !s.action.ref.dead) { cx.strokeStyle = 'rgba(226,169,59,' + (0.3 + 0.5 * s.action.p / 1.2) + ')'; cx.lineWidth = 0.06; cx.beginPath(); cx.moveTo(s.x, s.y); cx.lineTo(s.action.ref.x, s.action.ref.y); cx.stroke(); }
       if (s.state === 'free' && s.action && s.action.type === 'revive') { cx.strokeStyle = 'rgba(185,163,230,0.8)'; cx.lineWidth = 0.1; cx.beginPath(); cx.arc(s.action.ref.dx, s.action.ref.dy, 1.3, -Math.PI / 2, -Math.PI / 2 + TAU * s.action.p / 25); cx.stroke(); }
@@ -1516,6 +1617,7 @@ if (!HEADLESS) (function () {
     cx.restore();
 
     /* ---------- screen-space layers ---------- */
+    for (const K of G.Ks) if (!K.dead && K.dg >= 0 && G.surv[K.dg] && canSee(K)) txt(G.surv[K.dg].name, sx(K.x), sy(K.y) - 0.9 * S, 13, 'rgba(217,210,194,0.8)', 'center');   // a disguise carries its name tag too
     for (const s of G.surv) { if (s === focus) continue; if (s.state === 'hooked') edgeMark(s.x, s.y, '#eb4632', 'H'); else if (s.state === 'free' && s.health === 2) edgeMark(s.x, s.y, '#eb963c', '!'); else if (s.state === 'free' && canSee(s)) { txt(s.name, sx(s.x), sy(s.y) - 0.9 * S, 13, 'rgba(217,210,194,0.8)', 'center'); } }
     if (p.cls.id === 4 && p.stage < 2 && inPlay(p)) for (const s of G.surv) if (s.state === 'dead' && s.dx !== undefined && s.fate !== 'taken by the collapse') edgeMark(s.dx, s.dy, '#b9a3e6', '+');
     if (G.powered && radio && !radio.done) edgeMark(radio.x, radio.y, COL.amber, 'R');
@@ -1531,6 +1633,8 @@ if (!HEADLESS) (function () {
     }
     // heartbeat
     const band = inPlay(p) ? hbBand(p) : 0;
+    const dj = inPlay(p) ? G.Ks.find(k => !k.dead && k.type.troupe && hyp(k.x - p.x, k.y - p.y) < k.tr) : null;      // the Dancer brings its own music
+    if (dj) { beatT -= dt; if (beatT <= 0) { beatT = 0.5; beatN++; const v = clamp(1 - hyp(dj.x - p.x, dj.y - p.y) / dj.tr, 0.08, 1) * 0.5; AU.tone(beatN % 2 ? 196 : 98, 0.09, 'square', v * 0.3); AU.noise(0.04, v * (beatN % 2 ? 0.5 : 0.2), 7000, 0.25); if (beatN % 8 === 0) AU.tone(392, 0.2, 'sawtooth', v * 0.2, 784); } }
     if (band > 0) { hbT -= dt; if (hbT <= 0) { hbT = [0, 1.05, 0.72, 0.46][band]; hbPulse = 1; const v = [0, 0.25, 0.4, 0.6][band]; AU.tone(58, 0.16, 'sine', v); AU.tone(50, 0.2, 'sine', v * 0.8, 0, 0.17); if (G.Ks.some(k => k.chase === p)) AU.noise(0.06, 0.12, 4000, 0.3); } }
     if (hbPulse > 0) { hbPulse -= dt * 2.4; const g = cx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.72); g.addColorStop(0, 'rgba(150,10,10,0)'); g.addColorStop(1, 'rgba(150,10,10,' + (Math.max(0, hbPulse) * [0, 0.25, 0.4, 0.6][band]) + ')'); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
     drawHUD(now, p, K); tutUI(p);
@@ -1631,7 +1735,7 @@ if (!HEADLESS) (function () {
     $('pHun').innerHTML = row(-1, OPT.hunter === -1, { name: 'A different one each trial', pro: 'You find out which when the trial starts.' }) + HUNTERS.map((h, i) => row(i, OPT.hunter === i, h)).join('');
     $('pHiq').innerHTML = HIQ.map((h, i) => row(i, OPT.hiq === i, h)).join('');
     $('pSiq').innerHTML = SIQ.map((h, i) => row(i, OPT.siq === i, h)).join('');
-    $('pNh').innerHTML = [1, 2, 3].map(n => row(n, OPT.hunters === n, { name: ['', 'One hunter', 'Two hunters', 'Three hunters'][n], pro: n === 1 ? 'The classic trial.' : n === 2 ? 'They share what they see and split up to cover the map. The second is a different type from the first. Objectives need 20% less work to compensate.' : 'One of each type, hunting as a pack. Objectives need 36% less work, and you will still want more survivors.' })).join('');
+    $('pNh').innerHTML = [1, 2, 3].map(n => row(n, OPT.hunters === n, { name: ['', 'One hunter', 'Two hunters', 'Three hunters'][n], pro: n === 1 ? 'The classic trial.' : n === 2 ? 'They share what they see and split up to cover the map. The second is a different type from the first. Objectives need 20% less work to compensate.' : 'Three different types, hunting as a pack. Objectives need 36% less work, and you will still want more survivors.' })).join('');
     $('pNs').innerHTML = [2, 3, 4, 5, 6, 8].map(n => row(n, OPT.survivors === n, { name: n + ' survivors', pro: n === 4 ? 'The classic team.' : n < 4 ? 'Fewer hands, so each objective is quicker (' + Math.round((0.5 + 0.5 * n / 4) * 100) + '% of the usual work).' : 'More hands, so each objective takes longer (' + Math.round((0.5 + 0.5 * n / 4) * 100) + '% of the usual work).' })).join('');
     $('sNh').textContent = OPT.hunters; $('sNs').textContent = OPT.survivors;
     $('sMap').textContent = MAPS[OPT.map].name; $('sCls').textContent = CLASSES[OPT.cls].name; $('sHun').textContent = OPT.hunter < 0 ? 'a different one each trial' : HUNTERS[OPT.hunter].name; $('sHiq').textContent = HIQ[OPT.hiq].name; $('sSiq').textContent = SIQ[OPT.siq].name;
@@ -1778,8 +1882,8 @@ if (!HEADLESS) (function () {
       if (!peers.length) return;
       const A = a => a ? [AT.indexOf(a.type), a.type === 'aim' ? a.ref.idx : (a.ref && a.ref.id !== undefined ? a.ref.id : 0), r2(a.p || 0)] : 0;
       const m = { t: 's', T: r2(G.t),
-        S: G.surv.map(s => [r2(s.x), r2(s.y), r2(s.face), STN.indexOf(s.state), s.health, s.stage, r1(s.hookT), (s.crouch ? 1 : 0) | (s.moving ? 2 : 0) | (s.endT > 0 ? 4 : 0) | (s.heldT > 0 ? 8 : 0) | (G.sees[s.id] ? 16 : 0) | (s.human ? 32 : 0), A(s.action), r1(s.healP), r2(s.wig), s.guard, r1(Math.max(0, s.abT)), s.carrier ? s.carrier.idx : -1, s.fate, s.tries, s.decoy ? [r1(s.decoy.x), r1(s.decoy.y)] : 0, s.dx !== undefined ? [r1(s.dx), r1(s.dy)] : 0]),
-        K: G.Ks.map(k => [r2(k.x), r2(k.y), r2(k.face), k.st, k.cloak ? 1 : 0, k.carry ? k.carry.id : -1, k.wounds || 0, k.dead ? 1 : 0, k.chase ? k.chase.id : -1]),
+        S: G.surv.map(s => [r2(s.x), r2(s.y), r2(s.face), STN.indexOf(s.state), s.health, s.stage, r1(s.hookT), (s.crouch ? 1 : 0) | (s.moving ? 2 : 0) | (s.endT > 0 ? 4 : 0) | (s.heldT > 0 ? 8 : 0) | (G.sees[s.id] ? 16 : 0) | (s.human ? 32 : 0) | (s.slowT > 0 ? 64 : 0), A(s.action), r1(s.healP), r2(s.wig), s.guard, r1(Math.max(0, s.abT)), s.carrier ? s.carrier.idx : -1, s.fate, s.tries, s.decoy ? [r1(s.decoy.x), r1(s.decoy.y)] : 0, s.dx !== undefined ? [r1(s.dx), r1(s.dy)] : 0]),
+        K: G.Ks.map(k => [r2(k.x), r2(k.y), r2(k.face), k.st, k.cloak ? 1 : 0, k.carry ? k.carry.id : -1, k.wounds || 0, k.dead ? 1 : 0, k.chase ? k.chase.id : -1, kfx(k)]),
         g: gens.map(g => [r1(g.p), (g.done ? 1 : 0) | (g.regress ? 2 : 0), g.users, r1(g.boomT)]), p: pallets.map(p => p.state[0]).join(''), G: gates.map(g => [r1(g.p), g.open ? 1 : 0]), h: hooks.map(h => h.broken ? 1 : 0).join(''),
         r: radio ? [r1(radio.p), radio.done ? 1 : 0] : 0, H: G.hatch ? [G.hatch.x, G.hatch.y] : 0, o: [G.gensDone, G.powered ? 1 : 0, r1(G.egc), r1(G.evacT)],
         e: evq, m: G.marks.filter(q => q.t > lastMarkT).map(q => [r1(q.x), r1(q.y), r2(q.t), q.o, q.k, r1(q.a), q.life]),
@@ -1820,12 +1924,12 @@ if (!HEADLESS) (function () {
       lastSnap = performance.now(); G.t = m.T;
       m.S.forEach((a, i) => {
         const s = G.surv[i]; if (!s) return; const st = STN[a[3]]; s.tx = a[0]; s.ty = a[1]; if (st !== s.state || hyp(s.tx - s.x, s.ty - s.y) > 5) { s.x = s.tx; s.y = s.ty; }
-        s.face = a[2]; s.state = st; s.health = a[4]; s.stage = a[5]; s.hookT = a[6]; const f = a[7]; s.crouch = !!(f & 1); s.moving = !!(f & 2); s.endT = f & 4 ? 1 : 0; s.heldT = f & 8 ? 0.3 : 0; G.sees[i] = !!(f & 16); s.human = !!(f & 32);
+        s.face = a[2]; s.state = st; s.health = a[4]; s.stage = a[5]; s.hookT = a[6]; const f = a[7]; s.crouch = !!(f & 1); s.moving = !!(f & 2); s.endT = f & 4 ? 1 : 0; s.heldT = f & 8 ? 0.3 : 0; G.sees[i] = !!(f & 16); s.human = !!(f & 32); s.slowT = f & 64 ? 1 : 0;
         const A = a[8]; s.action = A ? { type: AT[A[0]], p: A[2], ref: A[0] === 1 ? gens[A[1]] : (A[0] === 2 || A[0] === 3 || A[0] === 7) ? G.surv[A[1]] : A[0] === 4 ? gates[A[1]] : A[0] === 5 ? radio : A[0] === 6 ? G.Ks[A[1]] : s } : null;
         s.healP = a[9]; s.wig = a[10]; s.guard = a[11]; s.abT = a[12]; s.carrier = a[13] >= 0 ? G.Ks[a[13]] : null; s.fate = a[14]; s.tries = a[15]; s.decoy = a[16] ? { x: a[16][0], y: a[16][1], t: G.t } : null; if (a[17]) { s.dx = a[17][0]; s.dy = a[17][1]; }
         s.hook = st === 'hooked' ? { x: s.tx, y: s.ty } : null;
       });
-      m.K.forEach((a, i) => { const k = G.Ks[i]; if (!k) return; k.tx = a[0]; k.ty = a[1]; if (hyp(k.tx - k.x, k.ty - k.y) > 6) { k.x = k.tx; k.y = k.ty; } k.face = a[2]; k.st = a[3]; k.cloak = !!a[4]; k.carry = a[5] >= 0 ? G.surv[a[5]] : null; k.wounds = a[6]; k.dead = !!a[7]; k.chase = a[8] >= 0 ? G.surv[a[8]] : null; });
+      m.K.forEach((a, i) => { const k = G.Ks[i]; if (!k) return; k.tx = a[0]; k.ty = a[1]; if (hyp(k.tx - k.x, k.ty - k.y) > 6) { k.x = k.tx; k.y = k.ty; } k.face = a[2]; k.st = a[3]; k.cloak = !!a[4]; k.carry = a[5] >= 0 ? G.surv[a[5]] : null; k.wounds = a[6]; k.dead = !!a[7]; k.chase = a[8] >= 0 ? G.surv[a[8]] : null; kfxSet(k, a[9]); });
       m.g.forEach((a, i) => { const g = gens[i]; if (!g) return; g.p = a[0]; g.done = !!(a[1] & 1); g.regress = !!(a[1] & 2); g.users = a[2]; g.boomT = a[3]; });
       for (let i = 0; i < m.p.length && i < pallets.length; i++) { const p = pallets[i], st = m.p[i] === 'u' ? 'up' : m.p[i] === 'd' ? 'down' : 'gone'; if (p.state !== st) { p.state = st; tiles[p.n] = st === 'up' ? PAL_UP : st === 'down' ? PAL_DN : FLOOR; } }
       m.G.forEach((a, i) => { const g = gates[i]; if (!g) return; g.p = a[0]; if (a[1] && !g.open) { g.open = true; for (const n of g.tiles) tiles[n] = GATE_OPEN; } });
