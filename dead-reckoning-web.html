@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Dead Reckoning</title>
+<style>
+:root{--fog:#07090b;--earth:#141a17;--bone:#d9d2c2;--blood:#b3221c;--amber:#e2a93b;--mute:#8b908c;
+--hud:"Avenir Next Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;--display:Baskerville,"Hoefler Text","Iowan Old Style",Georgia,serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--fog);overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+canvas#c{position:fixed;inset:0;display:block;touch-action:none}
+.ovl{position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;display:flex;justify-content:center;align-items:flex-start;
+padding:max(28px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left));
+background:radial-gradient(120% 90% at 50% 0%,rgba(40,52,48,.55),rgba(7,9,11,.97) 62%),var(--fog);color:var(--bone);font-family:var(--hud);font-size:18px;line-height:1.45}
+.ovl.hidden{display:none}
+#pause{background:rgba(7,9,11,.82);align-items:center}
+.col{width:100%;max-width:560px;margin:auto 0}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(46px,9vw,76px);line-height:.95;letter-spacing:.01em;margin:0 0 .35em;text-shadow:3px 2px 0 rgba(179,34,28,.75),0 0 38px rgba(179,34,28,.35)}
+h2{font-family:var(--display);font-weight:400;font-size:clamp(38px,7vw,56px);line-height:1;margin:0 0 .3em;text-shadow:2px 2px 0 rgba(179,34,28,.7)}
+h3{font-size:19px;font-weight:600;margin:1.5em 0 .3em;color:var(--bone)}
+p{margin:0 0 1em;max-width:34em}
+.lede{font-size:21px}
+.mem,.note{color:var(--mute);font-size:16px}
+button{font:600 19px var(--hud);color:var(--bone);background:transparent;border:1.5px solid rgba(217,210,194,.38);border-radius:3px;min-height:52px;padding:10px 18px;width:100%;margin:0 0 12px;text-align:left;cursor:pointer}
+button:active{background:rgba(217,210,194,.14)}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+button:disabled{opacity:.5}
+button.go{background:var(--blood);border-color:var(--blood);font-size:23px;min-height:64px}
+button.go:active{background:#8f1a15}
+button.opt{font-weight:500;font-size:16px;line-height:1.3;min-height:0;padding:10px 14px;margin:0;display:block}
+button.opt b{display:block;font-size:19px;font-weight:600;margin-bottom:3px}
+button.opt span{display:block;padding-left:1em;text-indent:-1em}
+button.opt .pro{color:#c9c3b4}button.opt .pro::before{content:"+ ";color:var(--amber)}
+button.opt .con{color:var(--mute)}button.opt .con::before{content:"\2212  ";color:#c8554d}
+button.opt.on{border-color:var(--bone);background:rgba(217,210,194,.12);box-shadow:inset 4px 0 0 var(--blood)}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 18px}
+@media(max-width:520px){.pick{grid-template-columns:1fr}}
+.sets{margin:0 0 18px;border-bottom:1px solid rgba(217,210,194,.16)}
+details.set{margin:0;border-bottom:0}
+details.set summary b{color:var(--amber);font-weight:600}
+.pick.one{grid-template-columns:1fr}
+.hidden{display:none !important}
+.fld{display:block;margin:0 0 14px;color:var(--mute);font-size:16px}
+.fld input{display:block;width:100%;margin-top:6px;min-height:50px;padding:8px 12px;font:600 20px var(--hud);color:var(--bone);background:rgba(0,0,0,.35);border:1.5px solid rgba(217,210,194,.38);border-radius:3px;-webkit-user-select:text;user-select:text;touch-action:auto}
+.fld input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+#mpQR{display:block;width:264px;height:264px;margin:0 0 10px;image-rendering:pixelated}
+.code{font-size:34px;letter-spacing:.18em;color:var(--amber);margin-left:.3em}
+#mpList{list-style:none;padding:0;margin:0 0 12px}#mpList li{padding:6px 0;border-bottom:1px solid rgba(217,210,194,.14)}
+button.quiet{border-color:transparent;color:var(--mute);font-weight:500;padding-left:0}
+.pair{display:flex;gap:12px}
+details{margin:6px 0 14px;border-top:1px solid rgba(217,210,194,.16);border-bottom:1px solid rgba(217,210,194,.16)}
+summary{font-weight:600;padding:14px 0;cursor:pointer;list-style-position:inside}
+details ul{margin:0 0 14px;padding-left:1.1em;color:#bdb8ab;font-size:17px}
+details li{margin-bottom:.5em}
+#eFates{list-style:none;padding:0;margin:0 0 1em;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+#eFates i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:8px}
+#eFates span{color:var(--mute)}
+canvas.fig{width:100%;display:block;background:rgba(0,0,0,.25);margin:0 0 6px}
+.key{font-size:15px;color:var(--mute);margin-bottom:1em}
+.key b{font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="menu" class="ovl"><div class="col">
+  <h1>Dead Reckoning</h1>
+  <p class="lede">Finish the job, open the way out, leave. One hunter is looking for the four of you, and it remembers every route you have ever taken.</p>
+  <p id="mem" class="mem">Loading memory…</p>
+  <div class="sets">
+  <details class="set"><summary>Map: <b id="sMap"></b></summary><div id="pMap" class="pick one"></div></details>
+  <details class="set"><summary>You are the <b id="sCls"></b></summary><div id="pCls" class="pick"></div></details>
+  <details class="set"><summary>Hunter: <b id="sHun"></b></summary><div id="pHun" class="pick"></div></details>
+  <details class="set"><summary>Hunter's mind: <b id="sHiq"></b></summary><div id="pHiq" class="pick one"></div></details>
+  <details class="set"><summary>Teammates' minds: <b id="sSiq"></b></summary><div id="pSiq" class="pick one"></div></details>
+  <details class="set"><summary>Number of hunters: <b id="sNh"></b></summary><div id="pNh" class="pick one"></div></details>
+  <details class="set"><summary>Number of survivors: <b id="sNs"></b></summary><div id="pNs" class="pick"></div></details>
+  </div>
+  <button id="bPlay" class="go">Enter the trial</button>
+  <button id="bMP">Play with friends</button>
+  <button id="bDream">Let them train without you on this map (3 trials)</button>
+  <div class="pair"><button id="bPrem">Premonition: on</button><button id="bSnd">Sound: on</button></div>
+  <details><summary>How to play</summary><ul>
+    <li>Left thumb moves you. Push the stick to its edge to run. Running leaves scratch marks the hunter can follow; ease off to walk, or crouch to stay hidden at range.</li>
+    <li>The big button on the right does whatever is in reach: repair, heal, unhook, vault a window, drop or vault a pallet, open a gate. Moving cancels it.</li>
+    <li>When a ring appears while you repair or heal, tap as the needle crosses the marked zone. Miss and the generator bangs, and the hunter hears it.</li>
+    <li>A heartbeat means the hunter is within 32 metres. A red glow on the ground is the hunter about to come round the corner.</li>
+    <li>Two hits put you down. Three hooks, or too long on one, and you are gone. Friends on hooks and on the ground show through walls.</li>
+    <li>Premonition is your team's shared guess at where the hunter is: red haze on the ground and a red arc around you that narrows as the guess sharpens.</li>
+    <li>The eye at the top is the hunter's guess about you. When it opens wide, move.</li>
+    <li>Each map has its own job and its own kind of exit; the map picker says what to do, and the line at the bottom-left of the screen always shows the next step. Each map has its own memory.</li>
+    <li>Sprinter, Medic, Survivalist and Trickster get an extra button above Crouch for their ability. The Necromancer uses the big button next to a fallen teammate's cross. Teammates play a random mix of the other roles.</li>
+  </ul></details>
+  <p class="note">Both sides learn only from finished trials, and only from what they could have seen or heard. On a keyboard: WASD, Shift to walk, Space to act, C to crouch.</p>
+  <button id="bWipe" class="quiet">Wipe both memories</button>
+</div></div>
+
+<div id="end" class="ovl hidden"><div class="col">
+  <h2 id="eTitle"></h2>
+  <p id="eSub" class="lede"></p>
+  <ul id="eFates"></ul>
+  <p id="eYou" class="note"></p>
+  <button id="bAgain" class="go">Enter the next trial</button>
+  <h3>What they learned</h3>
+  <p id="eLearn"></p>
+  <canvas id="eChart" class="fig" width="1040" height="360"></canvas>
+  <p class="key">Guessing error per trial, in metres. Lower is more dangerous. <b style="color:#d9d2c2">Hunter guessing you</b>, <b style="color:#c8554d">hunter guessing everyone</b>, <b style="color:#6f9dbd">your team guessing the hunter</b>.</p>
+  <canvas id="eMap" class="fig" width="1040" height="874"></canvas>
+  <p class="key">This trial from above. <b style="color:#d9d2c2">Where you really went</b>, and <b style="color:#c8554d">where the hunter believed you were</b> each second.</p>
+  <button id="bMenu">Back to the menu</button>
+</div></div>
+
+<div id="mp" class="ovl hidden"><div class="col">
+  <h2>Play with friends</h2>
+  <p class="note" id="mpNote"></p>
+  <label class="fld">Your name<input id="mpName" maxlength="12" autocomplete="off"></label>
+  <div id="mpChoose"><button id="mpHost" class="go">Host a trial</button><button id="mpJoin">Join with a code</button></div>
+  <div id="mpHostBox" class="hidden">
+    <p class="lede">Room code <b id="mpCode" class="code"></b></p>
+    <canvas id="mpQR" width="264" height="264"></canvas>
+    <p class="note" id="mpQRNote"></p>
+    <label class="fld" id="mpLinkFld">Public link to this game<input id="mpLink" inputmode="url" autocomplete="off" placeholder="https://"></label>
+    <button id="mpStart" class="go">Start the trial with everyone here</button>
+    <button id="mpClose">Close the room</button>
+  </div>
+  <div id="mpJoinBox" class="hidden">
+    <label class="fld">Room code on the host's screen<input id="mpJoinCode" maxlength="4" autocapitalize="characters" autocomplete="off"></label>
+    <button id="mpJoinGo" class="go">Join</button>
+  </div>
+  <ul id="mpList"></ul>
+  <p id="mpStatus" class="mem" role="status"></p>
+  <button id="mpBack">Back</button>
+</div></div>
+
+<div id="pause" class="ovl hidden"><div class="col">
+  <h2>Paused</h2>
+  <button id="bResume" class="go">Resume</button>
+  <button id="bQuit">Leave the trial</button>
+</div></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   DEAD RECKONING — simulation core
+   Everything in this half runs without a screen so it can be tested
+   (and "dreamed") at high speed. Rendering/input lives in the UI half.
+   ===================================================================== */
+const HEADLESS = (typeof document === 'undefined');
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const hyp = Math.hypot;
+const rnd = (a, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; }
+
+/* ---------- world constants (metres / seconds, taken from the real game) ---------- */
+const T = 2, MW = 50, MH = 42, N = MW * MH, WW = MW * T, WH = MH * T;
+const BW = 25, BH = 21, NC = BW * BH, NS = NC * 9, CELL = 4;       // belief grid: 4 m cells x 9 headings
+const FLOOR = 0, WALL = 1, TREE = 2, ROCK = 3, WINDOW = 4, PAL_UP = 5, PAL_DN = 6, GEN = 7, HOOK = 8, GATE = 9, GATE_OPEN = 10;
+const SPD = { run: 4.0, walk: 2.26, crouch: 1.13, crawl: 0.7, killer: 4.6, carry: 3.68 };
+const TERROR = 32, HEAL_T = 16, HOOK_STAGE = 70, EGC_T = 120, BLEED_T = 240, MARK_LIFE = 8;
+let GEN_CHARGES = 90, GENS_NEEDED = 5, GATE_T = 20, MAP = null, radio = null;   // set per map
+const SC_GREAT = 0.035 * TAU, SC_GOOD = 0.13 * TAU;
+/* ---------- the roster: every survivor and every hunter trades one strength for one weakness ---------- */
+const CLASSES = [
+  { id: 0, name: 'Mechanic', repair: 1.2, heal: 0.7, markLife: 1, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.5, pro: 'Repairs 20% faster, with a wider great zone on skill checks.', con: 'Heals others 30% slower.' },
+  { id: 1, name: 'Sprinter', repair: 1, heal: 1, markLife: 1.5, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.5, pro: 'Sprint: a 3 second burst of speed, ready again after 40 seconds.', con: 'Scratch marks linger 50% longer.' },
+  { id: 2, name: 'Medic', repair: 0.88, heal: 1.5, markLife: 1, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.5, pro: 'Heals others 50% faster and can patch up alone.', con: 'Repairs 12% slower.' },
+  { id: 3, name: 'Shadow', repair: 1, heal: 1, markLife: 0.6, crouchSpd: 2.26, crouchSee: 9, hitBoost: 1.2, vault: 0.75, pro: 'Crouches at walking speed, is only spotted crouched within 9 m, and scratch marks fade fast.', con: 'Shorter burst of speed when hit, and slower through windows.' },
+  { id: 4, name: 'Necromancer', repair: 0.85, heal: 1, markLife: 1, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.5, pro: 'Raises the dead: a 25 second ritual where a teammate died brings them back, injured and on their last life.', con: 'Each ritual costs the Necromancer one of their own hook stages, the hunters are told where it starts, and moving breaks it. Repairs 15% slower.' },
+  { id: 5, name: 'Juggernaut', repair: 1, heal: 1, markLife: 1, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.9, run: 3.7, guard: 1, healNeed: 1.5, stunBonus: 1, pro: 'Takes three hits to go down instead of two, and pallets they drop stun for a second longer.', con: 'Runs 8% slower, is slow over windows, and takes 50% longer to heal. The extra hit only comes back at full health.' },
+  { id: 6, name: 'Survivalist', repair: 0.75, heal: 0.75, markLife: 1, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.5, pro: 'Carries a crossbow: the first bolt takes 45 seconds to make, each one after that 90. A hit floors a hunter for 6 seconds, frees anyone it is carrying, and wounds it. Four wounds kill it.', con: 'Must stand still for 1.2 seconds, within 10 m and in plain sight, to shoot. A hunter on the move dodges 1 bolt in 4; one that is busy, stunned or recovering never does. Every wound makes that hunter 5% faster and it goes for the shooter first. Repairs and heals 25% slower.' },
+  { id: 7, name: 'Trickster', repair: 1, heal: 1, markLife: 1, crouchSpd: 1.13, crouchSee: 16, hitBoost: 1.8, vault: 0.5, loud: 2, pro: 'Plants a decoy every 45 seconds: for 10 seconds the hunters believe that spot is where the Trickster is.', con: 'The decoy fails while a hunter is looking at them or at it, and when injured their groans carry twice as far.' }
+];
+const HUNTERS = [
+  { id: 0, name: 'The Warden', speed: 4.6, tr: 32, cool: 2.2, brk: 2.0, bl: 2, stun: 2.0, pro: 'Relentless: recovers fast after a hit, smashes pallets quickly, speeds up sooner in a long chase.', con: 'No special power. You always hear it coming.' },
+  { id: 1, name: 'The Shade', speed: 4.6, tr: 32, cool: 2.7, brk: 2.6, bl: 1, stun: 3.0, pro: 'Cloaks when it loses you: no heartbeat, no red glow, faster, almost invisible beyond 14 m.', con: 'Must uncloak before it can strike, and a bell gives that away. Pallets stun it for longer.' },
+  { id: 2, name: 'The Brute', speed: 4.4, tr: 40, cool: 2.7, brk: 2.6, bl: 1, stun: 2.0, pro: 'Charges in a straight line at twice your speed whenever it has a clear run at you.', con: 'Slower on foot, heard from 40 m away, and stuns itself if the charge hits a wall.' }
+];
+const scGreat = p => SC_GREAT * ((p || G.surv[G.me | 0]).cls.id === 0 ? 1.8 : 1);
+const DX = [1, 1, 0, -1, -1, -1, 0, 1, 0], DY = [0, 1, 1, 1, 0, -1, -1, -1, 0];   // index 8 = stay
+const DIRTAB = [5, 6, 7, 4, 8, 0, 3, 2, 1];
+const dirIdx = (sx, sy) => DIRTAB[(sy + 1) * 3 + (sx + 1)];
+const LOSB = new Uint8Array(16); LOSB[WALL] = 1; LOSB[TREE] = 1; LOSB[GATE] = 1;
+
+/* ---------- map: an 6x5 grid of 16 m tiles, like the real realm generator ---------- */
+const TPL = {
+  JG: ["........", ".###W##.", ".#......", ".#...#..", ".P...#..", ".#...#..", ".#......", "........"],
+  TL: ["........", ".#####..", "...#....", "...W....", "...#..#.", "......#.", "....###.", "........"],
+  SH: ["........", ".##W###.", ".#....#.", ".#....P.", ".#....#.", ".#....#.", ".###.##.", "........"],
+  PG: ["........", "..##....", "..#.....", "..P.....", "..#..##.", "..#...#.", "......#.", "........"],
+  LW: ["........", "........", ".##P###.", "........", "........", "....o...", "........", "........"],
+  MZ: ["........", ".##W##..", ".#......", ".#.#W##.", ".#.#....", ".#.P....", ".#.#.o..", "........"],
+  RK: ["........", "..oo....", "..oo..H.", "........", ".....o..", "....ooo.", ".....o..", "........"],
+  GN: ["........", "..##....", "........", "...G....", "........", ".....#..", "....##..", "........"],
+  G2: ["........", ".#......", ".#..G...", ".#......", "....#P#.", "........", "........", "........"],
+  HK: ["........", "........", "..#.....", "..#.H...", "..##....", "......o.", "........", "........"]
+};
+const LAYOUT = ["GN JG HK TL G2 RK", "PG MZ GN LW JG HK", "HK LW SH PG TL GN", "G2 TL RK GN MZ PG", "RK HK JG G2 HK LW"].map(r => r.split(' '));
+const ROTS = ["013202", "231031", "102313", "320120", "013231"];
+/* ---------- realms: each has its own layout, its own job to do and its own kind of way out ---------- */
+const MAPS = [
+  { id: 0, name: 'Ironworks Yard', layout: LAYOUT, rots: ROTS, seed: 7741, gates: [[0, 11], [MW - 1, 28]],
+    ground: ['#232c25', '#263027', '#202822', '#283126'], wall: '#4b5153', lip: '#272b2d',
+    goal: 'Repair 5 of the 7 generators. That powers two exit gates; hold the lever on either one for 20 seconds.',
+    obj: { kind: 'gens', look: 'gen', need: 5, charges: 90, sc: true, kick: true, exit: 'gates', gateT: 20, verb: 'Repair', doing: 'Repairing', noun: 'generator', left1: 'generator left', leftN: 'generators left', doneMsg: 'Generator repaired.', poweredMsg: 'The exit gates have power' } },
+  { id: 1, name: 'Drowned Quarry', layout: ["RK GN TL HK JG G2", "JG HK PG GN MZ LW", "LW MZ SH RK HK TL", "GN PG HK JG G2 RK", "HK TL G2 LW PG MZ"].map(r => r.split(' ')), rots: ["120331", "302112", "013220", "231003", "110232"], seed: 1289, gates: [[0, 30], [MW - 1, 9]],
+    ground: ['#22292d', '#252d31', '#1f2629', '#283034'], wall: '#5c5850', lip: '#2f2d28',
+    goal: 'Start 4 of the 6 pumps (they take longer than generators). Then find the radio, call the lift, and stay alive for 45 seconds. Both lift doors open on their own.',
+    obj: { kind: 'gens', look: 'pump', need: 4, charges: 110, sc: true, kick: true, exit: 'lift', gateT: 20, radioT: 15, waitT: 45, verb: 'Start pump', doing: 'Priming the pump', noun: 'pump', left1: 'pump left', leftN: 'pumps left', doneMsg: 'Pump running.', poweredMsg: 'The tunnel is draining. Someone has to radio for the lift' } },
+  { id: 2, name: 'Blackwood Chapel', layout: ["G2 HK GN JG RK G2", "TL GN MZ HK GN PG", "HK PG SH G2 LW RK", "GN LW HK TL GN JG", "RK G2 PG GN HK MZ"].map(r => r.split(' ')), rots: ["203110", "131202", "320013", "012331", "213020"], seed: 4403, gates: [[MW - 1, 19]],
+    ground: ['#2b2620', '#2f2a22', '#27221d', '#322c23'], wall: '#51495a', lip: '#29242e',
+    goal: 'Search the 10 crates for key pieces. Only 5 crates hold one and you need 4. Then unlock the single vault door: 30 seconds, and there is no second exit.',
+    obj: { kind: 'crates', look: 'crate', need: 4, pieces: 5, charges: 45, sc: false, kick: false, exit: 'vault', gateT: 30, verb: 'Search', doing: 'Searching', noun: 'crate', left1: 'key piece to find', leftN: 'key pieces to find', doneMsg: 'A key piece.', poweredMsg: 'The key is whole. Unlock the vault door' } }
+];
+/* ---------- how clever each side is allowed to be (chosen in settings) ---------- */
+const HIQ = [
+  { name: 'Dull', think: 0.45, cone: 0.75, range: 30, hearInj: 5, hearRun: 0, mem: false, lead: 0, assoc: false, lunge: 2.1, pro: 'Narrow vision, slow to react, never leads its strikes, and it ignores everything it has learned.', con: '' },
+  { name: 'Sharp', think: 0.2, cone: 0.96, range: 38, hearInj: 7, hearRun: 0, mem: true, lead: 0.6, assoc: true, lunge: 2.3, pro: 'The standard hunter. Uses its memory of past trials and reads generator progress.', con: '' },
+  { name: 'Cunning', think: 0.12, cone: 1.15, range: 42, hearInj: 11, hearRun: 9, mem: true, lead: 0.85, assoc: true, lunge: 2.45, pro: 'Wider vision, reacts faster, lunges further, and hears running feet and repair work through walls within 9 m.', con: '' }
+];
+const SIQ = [
+  { name: 'Careless', think: 0.5, fail: 0.03, mem: false, pallets: false, fleeD: 6, evBand: 4, evD: 0, abil: false, runBand: 9, stack1: 4, stack2: 0, pro: 'They run everywhere, fumble skill checks, forget pallets and abilities, and react late. Premonition is vaguer because they ignore their memory.', con: '' },
+  { name: 'Capable', think: 0.25, fail: 0.012, mem: true, pallets: true, fleeD: 9, evBand: 3, evD: 19, abil: true, runBand: 2, stack1: 4, stack2: 25, pro: 'The standard team. They use their memory of the hunter, pallets and abilities.', con: '' },
+  { name: 'Veteran', think: 0.15, fail: 0.004, mem: true, pallets: true, fleeD: 11, evBand: 3, evD: 25, abil: true, runBand: 1, stack1: -10, stack2: 30, pro: 'They walk whenever they hear a heartbeat, spread out across objectives, almost never fumble, and slip away earlier.', con: '' }
+];
+
+let tiles = new Uint8Array(N), vaxis = new Uint8Array(N);
+let gens = [], hooks = [], pallets = [], windows = [], gates = [], palAt = new Map();
+let cellOK = null, cellCx = null, cellCy = null, cellNb = null, cellTiles = null, floorList = [];
+
+function rotTpl(t, r) { let g = t.map(s => s.split('')); for (let k = 0; k < r; k++) { const n = []; for (let y = 0; y < 8; y++) { n.push([]); for (let x = 0; x < 8; x++) n[y].push(g[7 - x][y]); } g = n; } return g; }
+function connected() {
+  let start = -1, total = 0; for (let i = 0; i < N; i++) if (tiles[i] === FLOOR || tiles[i] === PAL_UP) { total++; if (start < 0) start = i; }
+  const seen = new Uint8Array(N), q = [start]; seen[start] = 1; let c = 0;
+  while (q.length) { const n = q.pop(); c++; const x = n % MW, y = (n / MW) | 0; for (let i = 0; i < 8; i += 2) { const nx = x + DX[i], ny = y + DY[i]; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue; const m = ny * MW + nx; if (!seen[m] && (tiles[m] === FLOOR || tiles[m] === PAL_UP)) { seen[m] = 1; q.push(m); } } }
+  return c === total;
+}
+function buildMap(mi) {
+  if (mi !== undefined && MAPS[mi] && (!MAP || MAP.id !== mi)) { MAP = MAPS[mi]; cellOK = null; }
+  if (!MAP) MAP = MAPS[0];
+  GEN_CHARGES = MAP.obj.charges; GENS_NEEDED = MAP.obj.need; GATE_T = MAP.obj.gateT;
+  tiles.fill(FLOOR);
+  for (let x = 0; x < MW; x++) { tiles[x] = WALL; tiles[(MH - 1) * MW + x] = WALL; }
+  for (let y = 0; y < MH; y++) { tiles[y * MW] = WALL; tiles[y * MW + MW - 1] = WALL; }
+  for (let cy = 0; cy < 5; cy++) for (let cx = 0; cx < 6; cx++) {
+    const g = rotTpl(TPL[MAP.layout[cy][cx]], +MAP.rots[cy][cx]);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const ch = g[y][x], i = (1 + cy * 8 + y) * MW + 1 + cx * 8 + x;
+      tiles[i] = ch === '#' ? WALL : ch === 'o' ? ROCK : ch === 'W' ? WINDOW : ch === 'P' ? PAL_UP : ch === 'G' ? GEN : ch === 'H' ? HOOK : FLOOR;
+    }
+  }
+  const gateDef = MAP.gates;
+  for (const [gx, gy] of gateDef) for (let k = 0; k < 3; k++) tiles[(gy + k) * MW + gx] = GATE;
+  // trees scattered in the lanes between tiles (seeded: the realm is always the same place, so habits can be learned)
+  const R = mulberry(MAP.seed);
+  for (let cy = 0; cy < 5; cy++) for (let cx = 0; cx < 6; cx++) {
+    if ((cx + cy) % 2) continue;
+    for (let k = 0; k < 4; k++) {
+      const side = (R() * 4) | 0, p = 2 + ((R() * 4) | 0);
+      const lx = side === 0 ? p : side === 1 ? 7 : side === 2 ? p : 0, ly = side === 0 ? 0 : side === 1 ? p : side === 2 ? 7 : p;
+      const x = 1 + cx * 8 + lx, y = 1 + cy * 8 + ly, i = y * MW + x;
+      if (tiles[i] !== FLOOR) continue;
+      let ok = true;
+      for (let d = 0; d < 8; d++) { const t = tiles[(y + DY[d]) * MW + x + DX[d]]; if (t !== FLOOR && !(t === WALL && (x + DX[d] === 0 || x + DX[d] === MW - 1 || y + DY[d] === 0 || y + DY[d] === MH - 1))) ok = false; if (t === GATE) ok = false; }
+      for (const [gx, gy] of gateDef) if (Math.abs(x - gx) < 4 && Math.abs(y - gy - 1) < 4) ok = false;
+      if (!ok) continue;
+      tiles[i] = TREE; if (!connected()) tiles[i] = FLOOR;
+    }
+  }
+  // objects
+  gens = []; hooks = []; pallets = []; windows = []; gates = []; palAt = new Map(); floorList = [];
+  const fl = (x, y) => tiles[y * MW + x] === FLOOR;
+  const slotsOf = (x, y) => { const o = []; for (let d = 0; d < 8; d += 2) { const nx = x + DX[d], ny = y + DY[d]; if (fl(nx, ny)) o.push({ x: (nx + .5) * T, y: (ny + .5) * T, n: ny * MW + nx }); } return o; };
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const i = y * MW + x, t = tiles[i], wx = (x + .5) * T, wy = (y + .5) * T;
+    if (t === FLOOR) floorList.push(i);
+    if (t === WINDOW || t === PAL_UP) {
+      vaxis[i] = (fl(x - 1, y) && fl(x + 1, y)) ? 0 : 1;
+      if (t === WINDOW) windows.push({ tx: x, ty: y, x: wx, y: wy, n: i, axis: vaxis[i] });
+      else { const p = { tx: x, ty: y, x: wx, y: wy, n: i, axis: vaxis[i], state: 'up' }; pallets.push(p); palAt.set(i, p); }
+    }
+    if (t === GEN) gens.push({ id: gens.length, tx: x, ty: y, x: wx, y: wy, n: i, p: 0, done: false, regress: false, users: 0, usersNow: 0, slots: slotsOf(x, y), seenP: 0, seenReg: false, visitT: -99, boomT: -99 });
+    if (t === HOOK) hooks.push({ id: hooks.length, tx: x, ty: y, x: wx, y: wy, n: i, occ: null, broken: false, slots: slotsOf(x, y) });
+  }
+  gateDef.forEach(([gx, gy], id) => {
+    const ix = gx === 0 ? 1 : MW - 2;
+    gates.push({ id, tiles: [0, 1, 2].map(k => (gy + k) * MW + gx), x: (gx + .5) * T, y: (gy + 1.5) * T, sx: (ix + .5) * T, sy: (gy + 1.5) * T, sn: (gy + 1) * MW + ix, p: 0, open: false, visitT: -99, dir: gx === 0 ? -1 : 1 });
+  });
+  if (MAP.obj.kind === 'crates') { const idx = gens.map((g, i) => i).sort(() => Math.random() - 0.5); for (const g of gens) g.has = false; for (let i = 0; i < MAP.obj.pieces; i++) gens[idx[i]].has = true; }
+  radio = null;
+  if (MAP.obj.exit === 'lift') { let bn = -1, bd = 1e9; for (const n of floorList) { const x = n % MW, y = (n / MW) | 0; let open = true; for (let d = 0; d < 8; d++) if (tiles[(y + DY[d]) * MW + x + DX[d]] !== FLOOR) open = false; if (!open) continue; const dd = hyp((x + .5) * T - WW / 2, (y + .5) * T - WH / 2); if (dd < bd) { bd = dd; bn = n; } } radio = { x: (bn % MW + .5) * T, y: (((bn / MW) | 0) + .5) * T, n: bn, p: 0, done: false, visitT: -99 }; }
+  if (!cellOK) buildCells();
+}
+const passish = t => t === FLOOR || t === PAL_UP || t === PAL_DN || t === WINDOW;
+function buildCells() {
+  cellOK = new Uint8Array(NC); cellCx = new Float32Array(NC); cellCy = new Float32Array(NC); cellNb = new Int16Array(NS).fill(-1); cellTiles = [];
+  for (let c = 0; c < NC; c++) {
+    const cx = c % BW, cy = (c / BW) | 0, list = []; let sx = 0, sy = 0;
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { const tx = cx * 2 + i, ty = cy * 2 + j; if (tx < MW && ty < MH && passish(tiles[ty * MW + tx])) { list.push(ty * MW + tx); sx += (tx + .5) * T; sy += (ty + .5) * T; } }
+    cellTiles.push(list); cellOK[c] = list.length ? 1 : 0;
+    cellCx[c] = list.length ? sx / list.length : (cx + .5) * CELL; cellCy[c] = list.length ? sy / list.length : (cy + .5) * CELL;
+  }
+  for (let c = 0; c < NC; c++) {
+    if (!cellOK[c]) continue; cellNb[c * 9 + 8] = c; const cx = c % BW, cy = (c / BW) | 0;
+    for (let d = 0; d < 8; d++) {
+      const nx = cx + DX[d], ny = cy + DY[d]; if (nx < 0 || ny < 0 || nx >= BW || ny >= BH) continue; const m = ny * BW + nx; if (!cellOK[m]) continue;
+      let ok = false;
+      for (const a of cellTiles[c]) for (const b of cellTiles[m]) { const ax = a % MW, ay = (a / MW) | 0, bx = b % MW, by = (b / MW) | 0, ddx = bx - ax, ddy = by - ay; if (Math.abs(ddx) > 1 || Math.abs(ddy) > 1) continue; if (ddx && ddy && !(passish(tiles[ay * MW + bx]) && passish(tiles[by * MW + ax]))) continue; ok = true; }
+      if (ok) cellNb[c * 9 + d] = m;
+    }
+  }
+}
+
+/* ---------- grid helpers ---------- */
+const tX = x => Math.floor(x / T);
+const tidx = (x, y) => clamp(tX(y), 0, MH - 1) * MW + clamp(tX(x), 0, MW - 1);
+const cellOf = (x, y) => clamp(Math.floor(y / CELL), 0, BH - 1) * BW + clamp(Math.floor(x / CELL), 0, BW - 1);
+function solidS(tx, ty) { if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true; const t = tiles[ty * MW + tx]; return !(t === FLOOR || t === PAL_UP || t === GATE_OPEN); }
+function solidK(tx, ty) { if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true; const t = tiles[ty * MW + tx]; return !(t === FLOOR || t === PAL_UP); }
+function ray(x0, y0, dx, dy, maxD, mark, stamp) {
+  let tx = Math.floor(x0 / T), ty = Math.floor(y0 / T);
+  const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, adx = Math.abs(dx), ady = Math.abs(dy);
+  const ddx = adx > 1e-9 ? T / adx : 1e9, ddy = ady > 1e-9 ? T / ady : 1e9;
+  let tmx = adx > 1e-9 ? (dx > 0 ? (tx + 1) * T - x0 : x0 - tx * T) / adx : 1e9, tmy = ady > 1e-9 ? (dy > 0 ? (ty + 1) * T - y0 : y0 - ty * T) / ady : 1e9, d = 0;
+  for (; ;) {
+    if (mark) mark[ty * MW + tx] = stamp;
+    if (tmx < tmy) { d = tmx; tmx += ddx; tx += sx; } else { d = tmy; tmy += ddy; ty += sy; }
+    if (d >= maxD) return maxD;
+    if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return d;
+    if (LOSB[tiles[ty * MW + tx]]) return d;
+  }
+}
+function los(x0, y0, x1, y1) { const d = hyp(x1 - x0, y1 - y0); if (d < 1e-4) return true; return ray(x0, y0, (x1 - x0) / d, (y1 - y0) / d, d) >= d - 1e-4; }
+function walkClear(x0, y0, x1, y1, k) {
+  const d = hyp(x1 - x0, y1 - y0); if (d < 0.01) return true;
+  const ux = (x1 - x0) / d, uy = (y1 - y0) / d, px = -uy * 0.46, py = ux * 0.46, sol = k ? solidK : solidS;
+  for (let s = 0; ; s += 0.45) { if (s > d) s = d; const x = x0 + ux * s, y = y0 + uy * s; if (sol(tX(x + px), tX(y + py)) || sol(tX(x - px), tX(y - py))) return false; if (s >= d) break; }
+  return true;
+}
+function moveEnt(e, dx, dy, k) {
+  const sol = k ? solidK : solidS, r = e.r; e.x += dx; e.y += dy;
+  for (let it = 0; it < 2; it++) {
+    const x0 = tX(e.x - r), x1 = tX(e.x + r), y0 = tX(e.y - r), y1 = tX(e.y + r);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      if (!sol(tx, ty)) continue;
+      const nx = clamp(e.x, tx * T, (tx + 1) * T), ny = clamp(e.y, ty * T, (ty + 1) * T), ox = e.x - nx, oy = e.y - ny, d2 = ox * ox + oy * oy;
+      if (d2 >= r * r) continue;
+      if (d2 > 1e-9) { const d = Math.sqrt(d2); e.x = nx + ox / d * r; e.y = ny + oy / d * r; }
+      else { const l = e.x - tx * T, rr = (tx + 1) * T - e.x, u = e.y - ty * T, dn = (ty + 1) * T - e.y, m = Math.min(l, rr, u, dn); if (m === l) e.x = tx * T - r; else if (m === rr) e.x = (tx + 1) * T + r; else if (m === u) e.y = ty * T - r; else e.y = (ty + 1) * T + r; }
+    }
+  }
+}
+function walkNear(x, y, k) {
+  const tx = clamp(tX(x), 0, MW - 1), ty = clamp(tX(y), 0, MH - 1), sol = k ? solidK : solidS;
+  if (!sol(tx, ty)) return ty * MW + tx;
+  let best = -1, bd = 1e9;
+  for (let r = 1; r <= 4 && best < 0; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { if (sol(tx + i, ty + j)) continue; const d = hyp((tx + i + .5) * T - x, (ty + j + .5) * T - y); if (d < bd) { bd = d; best = (ty + j) * MW + tx + i; } }
+  return best < 0 ? ty * MW + tx : best;
+}
+
+/* ---------- Dijkstra flow fields (vaults and pallet breaks are edges with a time cost) ---------- */
+const HN = new Int32Array(40000), HP = new Float32Array(40000); let HL = 0;
+function hpush(n, p) { let i = HL++; while (i > 0) { const q = (i - 1) >> 1; if (HP[q] <= p) break; HN[i] = HN[q]; HP[i] = HP[q]; i = q; } HN[i] = n; HP[i] = p; }
+function hpop() { const n = HN[0]; HL--; if (HL > 0) { const ln = HN[HL], lp = HP[HL]; let i = 0; for (; ;) { let c = 2 * i + 1; if (c >= HL) break; if (c + 1 < HL && HP[c + 1] < HP[c]) c++; if (HP[c] >= lp) break; HN[i] = HN[c]; HP[i] = HP[c]; i = c; } HN[i] = ln; HP[i] = lp; } return n; }
+const newField = () => ({ d: new Float32Array(N), prev: new Int32Array(N), via: new Uint8Array(N) });
+function field(F, sn, k, palCost, more) {
+  const d = F.d, prev = F.prev, via = F.via; d.fill(1e9); prev.fill(-1); via.fill(0);
+  HL = 0; d[sn] = 0; hpush(sn, 0); if (more) for (const m of more) { d[m] = 0; hpush(m, 0); }
+  while (HL > 0) {
+    const p = HP[0], n = hpop(); if (p > d[n] + 1e-5) continue;
+    const x = n % MW, y = (n / MW) | 0;
+    for (let i = 0; i < 8; i++) {
+      const dx = DX[i], dy = DY[i], nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
+      const m = ny * MW + nx, tt = tiles[m];
+      if (tt === FLOOR || tt === PAL_UP || (!k && tt === GATE_OPEN)) {
+        if (dx && dy) { const sol = k ? solidK : solidS; if (sol(nx, y) || sol(x, ny)) continue; }
+        let c = p + ((dx && dy) ? 1.4142 : 1); if (palCost && tt === PAL_UP) c += palCost;
+        if (c < d[m]) { d[m] = c; prev[m] = n; via[m] = 0; hpush(m, c); }
+      } else if (!(dx && dy) && (tt === WINDOW || tt === PAL_DN)) {
+        if (vaxis[m] !== (dx ? 0 : 1)) continue;
+        const bx = nx + dx, by = ny + dy; if (bx < 0 || by < 0 || bx >= MW || by >= MH) continue;
+        const b = by * MW + bx, bt = tiles[b]; if (!(bt === FLOOR || bt === PAL_UP)) continue;
+        const c = p + 2 + (k ? (tt === WINDOW ? 4 : 6.5) : (tt === WINDOW ? 1.2 : 2.4));
+        if (c < d[b]) { d[b] = c; prev[b] = n; via[b] = (tt === PAL_DN && k) ? 2 : 1; hpush(b, c); }
+      }
+    }
+  }
+}
+function pathTo(F, n) { if (n < 0 || F.d[n] >= 1e8) return null; const out = []; let g = 0; while (n >= 0 && F.d[n] > 0 && g++ < 400) { out.push({ x: (n % MW + .5) * T, y: (((n / MW) | 0) + .5) * T, via: F.via[n], n }); n = F.prev[n]; } out.reverse(); return out; }
+function setPath(e, F, n) { e.path = pathTo(F, n); e.pi = 0; }
+function steerPath(e, k) {
+  const p = e.path; if (!p) return null;
+  while (e.pi < p.length && !p[e.pi].via && hyp(p[e.pi].x - e.x, p[e.pi].y - e.y) < 0.5) e.pi++;
+  if (e.pi >= p.length) return null;
+  const w = p[e.pi];
+  if (w.via) {
+    const pre = e.pi > 0 ? p[e.pi - 1] : { x: (tX(e.x) + .5) * T, y: (tX(e.y) + .5) * T };
+    if (hyp(pre.x - e.x, pre.y - e.y) < 0.42) return { vault: w };
+    return pre;
+  }
+  let lim = Math.min(p.length - 1, e.pi + 7); for (let q = e.pi + 1; q <= lim; q++) if (p[q].via) { lim = q - 1; break; }
+  for (let i = lim; i > e.pi; i--) if (walkClear(e.x, e.y, p[i].x, p[i].y, k)) { e.pi = i; break; }
+  return p[e.pi];
+}
+
+/* =====================================================================
+   THE BRAINS
+   Both sides run the same machine: a particle filter whose particles do
+   not move randomly — each one REPLAYS a stretch of movement that was
+   really recorded in an earlier trial (an episodic memory), hopping to
+   another remembered route whenever the first one stops fitting. What
+   the owner can see and hear then kills the particles that are wrong.
+   Nobody ever reads the other side's true position: accuracy comes only
+   from evidence + remembered habits. Empty memory = blind diffusion.
+   ===================================================================== */
+const NP = 360;
+const LCAP = [24000, 36000, 20000];                                  // remembered seconds: you | the bots | the hunter
+function newLib(cap) { return { x: new Uint8Array(cap), y: new Uint8Array(cap), m: new Uint8Array(cap), n: 0, cap, buckets: null }; }
+const EMPTY_LIB = newLib(1);
+function buildBuckets(L) {
+  const cnt = new Int32Array(NC); for (let i = 0; i < L.n; i++) cnt[cellOf(L.x[i] * .5, L.y[i] * .5)]++;
+  L.buckets = []; for (let c = 0; c < NC; c++) L.buckets.push(new Int32Array(cnt[c])); cnt.fill(0);
+  for (let i = 0; i < L.n; i++) { const c = cellOf(L.x[i] * .5, L.y[i] * .5); L.buckets[c][cnt[c]++] = i; }
+}
+function libAppend(L, rec) {
+  const add = rec.x.length; if (!add) return; let drop = Math.max(0, L.n + add - L.cap);
+  if (drop) { L.x.copyWithin(0, drop, L.n); L.y.copyWithin(0, drop, L.n); L.m.copyWithin(0, drop, L.n); L.n -= drop; if (L.n) L.m[0] |= 128; }
+  const st = Math.max(0, add - L.cap); for (let i = st; i < add; i++) { L.x[L.n] = rec.x[i]; L.y[L.n] = rec.y[i]; L.m[L.n] = rec.m[i]; L.n++; }
+}
+class Tracker {
+  constructor(lib) { this.lib = lib; this.x = new Float32Array(NP); this.y = new Float32Array(NP); this.w = new Float32Array(NP); this.li = new Int32Array(NP); this.ox = new Float32Array(NP); this.oy = new Float32Array(NP); this.ha = new Float32Array(NP); this.tx = new Float32Array(NP); this.ty = new Float32Array(NP); this.tl = new Int32Array(NP); this.to = new Float32Array(NP * 3); this.m = new Float32Array(NC); this.est = { x: WW / 2, y: WH / 2, conf: 0, seen: false }; this.markT = -1; this.pinned = null; this.tag = 0; }
+  /* choose a remembered moment in cell c that best matches the situation (same context, same phase of the trial, same heading) */
+  pick(c, ctx, phase, hx, hy) {
+    const L = this.lib, b = L.buckets[c]; if (!b || !b.length) return -1;
+    let best = -1, bs = -1e9;
+    for (let k = 0; k < 7; k++) {
+      const i = b[(Math.random() * b.length) | 0], mt = L.m[i]; let sc = Math.random() * 0.5;
+      if ((mt & 3) === ctx) sc += 2; if (Math.abs(((mt >> 2) & 7) - phase) <= 1) sc += 1; if (((mt >> 5) & 3) === this.tag) sc += 1.2;
+      if (hx !== undefined) { const cont = i + 1 < L.n && !(L.m[i + 1] & 128), dx = cont ? (L.x[i + 1] - L.x[i]) * .5 : 0, dy = cont ? (L.y[i + 1] - L.y[i]) * .5 : 0, d = hyp(dx, dy), h = hyp(hx, hy); if (d < 0.8 && h < 0.8) sc += 2; else if (d >= 0.8 && h >= 0.8) sc += 2 * (dx * hx + dy * hy) / (d * h); else sc -= 1; }
+      if (sc > bs) { bs = sc; best = i; }
+    }
+    return best;
+  }
+  latch(i, li) { const L = this.lib; this.li[i] = li; this.ox[i] = this.x[i] - L.x[li] * .5; this.oy[i] = this.y[i] - L.y[li] * .5; }
+  pin(x, y, vx, vy) { this.pinned = { x, y, vx, vy }; const e = this.est; e.x = x; e.y = y; e.conf = 1; e.seen = false; this.m.fill(0); this.m[cellOf(x, y)] = 1; }
+  known(x, y, vx, vy, ctx, phase) {
+    const c = cellOf(x, y);
+    for (let i = 0; i < NP; i++) { this.x[i] = x; this.y[i] = y; this.w[i] = 1 / NP; const li = this.pick(c, ctx, phase, vx, vy); if (li >= 0) this.latch(i, li); else { this.li[i] = -1; this.ha[i] = hyp(vx, vy) > 0.8 ? Math.atan2(vy, vx) + rnd(-0.6, 0.6) : rnd(TAU); } }
+  }
+  seed(i, ctx, phase, okFn) {
+    const L = this.lib;
+    for (let k = 0; k < 14; k++) {
+      let x, y, li = -1;
+      if (L.n > 0 && Math.random() < 0.7) { const j = (Math.random() * L.n) | 0, mt = L.m[j]; if ((mt & 3) !== ctx && k < 9) continue; if (Math.abs(((mt >> 2) & 7) - phase) > 1 && k < 6) continue; x = L.x[j] * .5; y = L.y[j] * .5; li = j; }
+      else if (this.genPrior && Math.random() < 0.5) { const g = gens[(Math.random() * gens.length) | 0]; if (g.done || !g.slots.length) continue; const sl = g.slots[(Math.random() * g.slots.length) | 0]; x = sl.x + rnd(-.5, .5); y = sl.y + rnd(-.5, .5); }
+      else { const n = floorList[(Math.random() * floorList.length) | 0]; x = (n % MW + .5) * T + rnd(-.9, .9); y = (((n / MW) | 0) + .5) * T + rnd(-.9, .9); }
+      if (okFn && k < 13 && Math.random() > okFn(x, y)) continue;
+      this.x[i] = x; this.y[i] = y; this.li[i] = li; this.ox[i] = this.oy[i] = 0; this.ha[i] = rnd(TAU); return;
+    }
+  }
+  lost(ctx, phase, okFn) { for (let i = 0; i < NP; i++) { this.seed(i, ctx, phase, okFn); this.w[i] = 1 / NP; } }
+  inject(k, ctx, phase, okFn) { let s = 0; for (let i = 0; i < NP; i++) s += this.w[i]; for (let j = 0; j < k; j++) { const i = (Math.random() * NP) | 0; this.seed(i, ctx, phase, okFn); this.w[i] = 0.3 * s / NP; } }
+  predict(ctx, phase, stayBad) {
+    const L = this.lib;
+    for (let i = 0; i < NP; i++) {
+      const li = this.li[i];
+      if (li >= 0) {
+        let nx = li + 1;
+        if (nx >= L.n || (L.m[nx] & 128) || Math.random() < 0.012) { nx = this.pick(cellOf(this.x[i], this.y[i]), ctx, phase); if (nx >= 0) this.latch(i, nx); }
+        if (nx >= 0) { this.li[i] = nx; this.ox[i] *= 0.7; this.oy[i] *= 0.7; const px = this.x[i], py = this.y[i]; this.x[i] = L.x[nx] * .5 + this.ox[i]; this.y[i] = L.y[nx] * .5 + this.oy[i]; if (stayBad && hyp(this.x[i] - px, this.y[i] - py) < 0.6 && stayBad(this.x[i], this.y[i])) this.w[i] *= 0.55; continue; }
+        this.li[i] = -1; this.ha[i] = rnd(TAU);
+      }
+      if (Math.random() < 0.5) { const l = this.pick(cellOf(this.x[i], this.y[i]), ctx, phase); if (l >= 0) { this.latch(i, l); continue; } }
+      if (Math.random() < (ctx === 1 ? 0.1 : 0.45)) continue;           // no memory here: keep going the way it was heading
+      const sp = ctx === 1 ? 4.3 : 3.4, a = this.ha[i] + rnd(-0.6, 0.6), nx = this.x[i] + Math.cos(a) * sp, ny = this.y[i] + Math.sin(a) * sp;
+      if (solidS(tX(nx), tX(ny)) || solidS(tX((nx + this.x[i]) / 2), tX((ny + this.y[i]) / 2))) this.ha[i] = rnd(TAU); else { this.x[i] = nx; this.y[i] = ny; this.ha[i] = a; }
+    }
+  }
+  visEv(vis, st, kx, ky) { for (let i = 0; i < NP; i++) if (vis[tidx(this.x[i], this.y[i])] === st) this.w[i] *= (kx !== undefined && kNear(this.x[i], this.y[i]) > 16) ? 0.25 : 0.004; }
+  around(x, y, r, inside, outside) { for (let i = 0; i < NP; i++) this.w[i] *= hyp(this.x[i] - x, this.y[i] - y) <= r ? inside : outside; }
+  band(x, y, lo, hi) { for (let i = 0; i < NP; i++) { const d = hyp(this.x[i] - x, this.y[i] - y); if (d < lo - 2 || d > hi + 2) this.w[i] *= 0.03; } }
+  finish(ctx, phase, okFn) {
+    const w = this.w; let s = 0; for (let i = 0; i < NP; i++) s += w[i];
+    if (s < 1e-9) this.lost(ctx, phase, okFn);
+    else { let s2 = 0; for (let i = 0; i < NP; i++) { w[i] /= s; s2 += w[i] * w[i]; } if (1 / s2 < NP * 0.5) this.resample(); }
+    return this.estimate();
+  }
+  resample() {
+    const w = this.w, tx = this.tx, ty = this.ty, tl = this.tl, to = this.to; let u = Math.random() / NP, c = w[0], j = 0;
+    for (let i = 0; i < NP; i++) { const t = u + i / NP; while (t > c && j < NP - 1) { j++; c += w[j]; } tx[i] = this.x[j]; ty[i] = this.y[j]; tl[i] = this.li[j]; to[i * 3] = this.ox[j]; to[i * 3 + 1] = this.oy[j]; to[i * 3 + 2] = this.ha[j]; }
+    for (let i = 0; i < NP; i++) { this.x[i] = tx[i]; this.y[i] = ty[i]; this.li[i] = tl[i]; this.ox[i] = to[i * 3]; this.oy[i] = to[i * 3 + 1]; this.ha[i] = to[i * 3 + 2]; w[i] = 1 / NP; }
+  }
+  estimate() {
+    const m = this.m, w = this.w; m.fill(0); let tot = 0; for (let i = 0; i < NP; i++) { m[cellOf(this.x[i], this.y[i])] += w[i]; tot += w[i]; }
+    if (tot <= 0) return this.est; for (let c = 0; c < NC; c++) m[c] /= tot;
+    let best = -1, bc = 0; const pc = this.pc === undefined ? -1 : this.pc;
+    for (let c = 0; c < NC; c++) { const cx = c % BW, cy = (c / BW) | 0; if (m[c] <= 0 && c !== pc) continue; let s = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const x = cx + i, y = cy + j; if (x >= 0 && y >= 0 && x < BW && y < BH) s += m[y * BW + x]; } if (c === pc) s *= 1.35; if (s > best) { best = s; bc = c; } }
+    if (bc === pc) best /= 1.35; this.pc = bc;
+    const bx = (bc % BW + .5) * CELL, by = (((bc / BW) | 0) + .5) * CELL; let sx = 0, sy = 0, sw = 0;
+    for (let i = 0; i < NP; i++) if (Math.abs(this.x[i] - bx) < 6 && Math.abs(this.y[i] - by) < 6) { sx += w[i] * this.x[i]; sy += w[i] * this.y[i]; sw += w[i]; }
+    const e = this.est; if (sw > 0) { e.x = sx / sw; e.y = sy / sw; } e.conf = Math.max(0, best); e.seen = false; return e;
+  }
+  massNear(x, y, r) { if (this.pinned) return hyp(this.pinned.x - x, this.pinned.y - y) <= r ? 1 : 0; let s = 0, t = 0; for (let i = 0; i < NP; i++) { t += this.w[i]; if (hyp(this.x[i] - x, this.y[i] - y) <= r) s += this.w[i]; } return t > 0 ? s / t : 0; }
+}
+
+/* persistent memory: every second of every finished trial, for each side */
+let BRAIN = null;
+function newBrain() { return { v: 5, trials: 0, dreams: 0, libs: MAPS.map(() => LCAP.map(newLib)), lib: null, hist: { h: [], you: [], s: [], esc: [], dream: [] } }; }
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function b64enc(a, n) { let o = ''; for (let i = 0; i < n; i += 3) { const b0 = a[i], b1 = i + 1 < n ? a[i + 1] : 0, b2 = i + 2 < n ? a[i + 2] : 0; o += B64[b0 >> 2] + B64[((b0 & 3) << 4) | (b1 >> 4)] + B64[((b1 & 15) << 2) | (b2 >> 6)] + B64[b2 & 63]; } return o; }
+function b64dec(s, a) { const R = b64dec.R || (b64dec.R = (() => { const r = new Uint8Array(128); for (let i = 0; i < 64; i++) r[B64.charCodeAt(i)] = i; return r; })()); let j = 0; for (let i = 0; i + 3 < s.length && j < a.length; i += 4) { const c0 = R[s.charCodeAt(i)], c1 = R[s.charCodeAt(i + 1)], c2 = R[s.charCodeAt(i + 2)], c3 = R[s.charCodeAt(i + 3)]; a[j++] = (c0 << 2) | (c1 >> 4); if (j < a.length) a[j++] = ((c1 & 15) << 4) | (c2 >> 2); if (j < a.length) a[j++] = ((c2 & 3) << 6) | c3; } }
+const encLibs = libs => libs.map(L => ({ n: L.n, x: b64enc(L.x, L.n), y: b64enc(L.y, L.n), m: b64enc(L.m, L.n) }));
+function decLibs(arr, libs) { if (!arr || arr.length !== 3) return false; arr.forEach((l, i) => { const L = libs[i]; L.n = Math.min(l.n | 0, L.cap); b64dec(l.x, L.x.subarray(0, L.n)); b64dec(l.y, L.y.subarray(0, L.n)); b64dec(l.m, L.m.subarray(0, L.n)); }); return true; }
+
+/* =====================================================================
+   MATCH STATE
+   ===================================================================== */
+let G = null;
+const INPUT = { jx: 0, jy: 0, crouch: false, act: false, ab: false };
+const CAST = [{ name: 'You', col: '#d7b45a' }, { name: 'Mara', col: '#6f9dbd' }, { name: 'Jonah', col: '#86a866' }, { name: 'Tess', col: '#b97a96' }, { name: 'Idris', col: '#c98a5a' }, { name: 'Noor', col: '#8f86c4' }, { name: 'Wren', col: '#5fae9f' }, { name: 'Cole', col: '#b0a48a' }];
+function kNear(x, y) { let d = 1e9; for (const k of G.Ks) d = Math.min(d, hyp(k.x - x, k.y - y)); return d; }                 // distance to the nearest hunter
+function nearK(x, y) { let b = G.Ks[0], d = 1e9; for (const k of G.Ks) { const q = hyp(k.x - x, k.y - y); if (q < d) { d = q; b = k; } } return b; }
+const ev = (type, o) => { if (G.events.length < 64) G.events.push(Object.assign({ type, t: G.t }, o || {})); };
+const isBot = s => !s.human || G.autoplay;
+const inPlay = s => s.state === 'free' || s.state === 'hooked' || s.state === 'carried';
+const headingOf = e => { const sp = hyp(e.vx, e.vy); if (sp < 0.6) return 8; return dirIdx(e.vx > 0.38 * sp ? 1 : e.vx < -0.38 * sp ? -1 : 0, e.vy > 0.38 * sp ? 1 : e.vy < -0.38 * sp ? -1 : 0); };
+
+function newMatch(opt) {
+  opt = opt || {}; if (!BRAIN) BRAIN = newBrain();
+  buildMap(opt.map | 0); BRAIN.lib = BRAIN.libs[MAP.id];
+  G = { me: 0, net: null, hiq: HIQ[opt.hiq === undefined ? 1 : opt.hiq] || HIQ[1], siq: SIQ[opt.siq === undefined ? 1 : opt.siq] || SIQ[1], evacT: -1, t: 0, autoplay: !!opt.autoplay, gensDone: 0, powered: false, poweredT: -1, egc: -1, over: false, overT: 0, hatch: null, anyUp: true, marks: [], events: [], surv: [], K: null, sc: null, scNext: rnd(3, 8), replay: [], tick02: 0, tick1: 0, eye: 0, acc: { shS: 0, shN: 0, hS: 0, hN: 0, hHit: 0, yS: 0, yN: 0, yHit: 0, sS: 0, sN: 0 }, stats: { repair: 0, heals: 0, unhooks: 0, greats: 0, chase: 0, hits: 0, downs: 0, hooks: 0 } };
+  const kn = floorList[(Math.random() * floorList.length) | 0];
+  const kx = (kn % MW + .5) * T, ky = (((kn / MW) | 0) + .5) * T;
+  G.K = { x: kx, y: ky, r: 0.55, vx: 0, vy: 0, face: rnd(TAU), st: 'free', tmr: 0, carry: null, goal: null, path: null, pi: 0, think: 0, F: newField(), sees: [false, false, false, false], seenT: [-99, -99, -99, -99], chase: null, lt: null, vault: null, scan: 1, knowsHatch: false, pc: -1, ph: 8, pctx: 0, stuckT: 0, lx: kx, ly: ky, bl: 0 };
+  const ht = (opt.hunter >= 0 && opt.hunter < HUNTERS.length) ? opt.hunter : (Math.random() * HUNTERS.length) | 0;
+  Object.assign(G.K, { type: HUNTERS[ht], tr: HUNTERS[ht].tr, cloak: false, chargeCd: 5, surge: 0, cdir: 0, unseenT: 0 });
+  const nH = clamp((opt.hunters | 0) || 1, 1, 3), nS = clamp(Math.max((opt.survivors | 0) || 4, opt.players ? opt.players.length : 1), 2, 8);
+  GEN_CHARGES = MAP.obj.charges * (0.5 + 0.5 * nS / 4) * Math.pow(0.8, nH - 1);                 // more hands, more work per objective
+  G.sees = new Array(nS).fill(false); G.seenT = new Array(nS).fill(-99); G.K.sees = G.sees; G.K.seenT = G.seenT; G.K.idx = 0; G.Ks = [G.K];   // hunters share one pair of eyes
+  for (let j = 1; j < nH; j++) {
+    let n2 = kn, tries = 0; do { n2 = floorList[(Math.random() * floorList.length) | 0]; } while (tries++ < 40 && kNear((n2 % MW + .5) * T, (((n2 / MW) | 0) + .5) * T) < 30);
+    const x2 = (n2 % MW + .5) * T, y2 = (((n2 / MW) | 0) + .5) * T, t2 = HUNTERS[(ht + j) % HUNTERS.length];
+    G.Ks.push(Object.assign({}, G.K, { x: x2, y: y2, lx: x2, ly: y2, face: rnd(TAU), F: newField(), idx: j, type: t2, tr: t2.tr, think: j * 0.07 }));
+  }
+  const NCL = CLASSES.length, pcl = (opt.cls >= 0 && opt.cls < NCL) ? opt.cls : (Math.random() * NCL) | 0, order = [pcl].concat(CLASSES.map(c => c.id).filter(c => c !== pcl).sort(() => Math.random() - 0.5));   // teammates get a random mix of the other roles
+  if (opt.team) for (let i = 0; i < opt.team.length; i++) order[i + 1] = opt.team[i];
+  const farOf = lim => floorList.filter(n => kNear((n % MW + .5) * T, (((n / MW) | 0) + .5) * T) > lim);
+  let far = farOf(nH > 1 ? 36 : 46); if (far.length < 12) far = farOf(22); if (far.length < 4) far = floorList;
+  const anchor = far[(Math.random() * far.length) | 0], ax = (anchor % MW + .5) * T, ay = (((anchor / MW) | 0) + .5) * T;
+  const nearA = far.filter(n => hyp((n % MW + .5) * T - ax, (((n / MW) | 0) + .5) * T - ay) < 9);
+  for (let i = 0; i < nS; i++) {
+    const pool = (Math.random() < 0.6 && nearA.length > 3) ? nearA : far, n = pool[(Math.random() * pool.length) | 0];
+    G.surv.push({ carrier: null, cls: CLASSES[order[i % order.length]], guard: 0, decoy: null, markedT: 0, abT: 0, id: i, name: CAST[i].name, col: CAST[i].col, isPlayer: i === 0, x: (n % MW + .5) * T, y: (((n / MW) | 0) + .5) * T, r: 0.45, vx: 0, vy: 0, face: 0, ix: 0, iy: 0, run: true, crouch: false, health: 0, state: 'free', fate: '', stage: 0, hookT: 0, hook: null, tries: 3, action: null, vault: null, boostT: 0, hasteT: 0, endT: 0, lockT: 0, healP: 0, heldT: 0, bleed: BLEED_T, wig: 0, markT: 0, bloodT: 0, unhookT: -99, goal: null, path: null, pi: 0, think: i * 0.06, F: newField(), fleeT: 0, evadeT: 0, fleeN: -1, kdPrev: 99, pc: -1, ph: 8, pctx: 0, stuckT: 0, lx: 0, ly: 0, moving: false });
+  }
+  if (opt.players) opt.players.forEach((pl, i) => { const sv = G.surv[i]; if (!sv) return; sv.human = true; sv.inp = pl.inp; sv.name = pl.name || sv.name; if (i) sv.cls = CLASSES[pl.cls] || sv.cls; });   // friends who joined
+  else if (!G.autoplay) { G.surv[0].human = true; G.surv[0].inp = INPUT; }
+  if (opt.players) { const used = new Set(G.surv.filter(v => v.human).map(v => v.cls.id)), free = CLASSES.map(c => c.id).filter(c => !used.has(c)).sort(() => Math.random() - 0.5); let fi = 0; for (const sv of G.surv) if (!sv.human && used.has(sv.cls.id) && fi < free.length) sv.cls = CLASSES[free[fi++]]; }   // bots take roles the humans did not
+  for (const sv of G.surv) { sv.sc = null; sv.scNext = rnd(3, 8); sv.eye = 0; sv.guard = sv.cls.guard || 0; sv.abT = sv.cls.id === 6 ? 45 : 0; }   // the first bolt takes time to make
+  // brains: memory is frozen for the duration of a trial; what happens now is only written into it afterwards
+  for (const L of BRAIN.lib) buildBuckets(L); buildBuckets(EMPTY_LIB);
+  G.rec = Array.from({ length: nS + nH }, () => ({ x: [], y: [], m: [] }));               // one recording per survivor + one for the hunter
+  const HB = G.HB = { tr: [], vis: new Int32Array(N), stamp: 0 };
+  for (const sv of G.surv) { const tr = new Tracker(G.hiq.mem ? BRAIN.lib[(sv.human && !G.autoplay) ? 0 : 1] : EMPTY_LIB); tr.genPrior = true; tr.tag = sv.cls.id & 3; tr.lost(0, 0, (x, y) => kNear(x, y) > (nH > 1 ? 32 : 42) ? 1 : 0.03); tr.estimate(); HB.tr.push(tr); }
+  const SB = G.SB = { trs: [], seenK: [], vis: new Int32Array(N), stamp: 0, kf: newField(), kfT: -9 };          // the team keeps one belief per hunter
+  for (const k of G.Ks) { const tr = new Tracker(G.siq.mem ? BRAIN.lib[2] : EMPTY_LIB); tr.tag = k.type.id; tr.lost(0, 0, (x, y) => { let md = 1e9; for (const sv of G.surv) md = Math.min(md, hyp(x - sv.x, y - sv.y)); return md > (nH > 1 ? 30 : 42) ? 1 : 0.03; }); tr.estimate(); SB.trs.push(tr); SB.seenK.push(false); }
+  return G;
+}
+
+/* =====================================================================
+   SURVIVORS
+   ===================================================================== */
+const subjOf = s => (s.human && !G.autoplay) ? 0 : 1;
+function hunterCtx(s) { return G.powered ? 3 : (G.t - G.seenT[s.id] < 8) ? 1 : G.surv.some(o => o.state === 'hooked') ? 2 : 0; }
+function survSpeed(s) { if (s.health === 2) return SPD.crawl; let v = s.crouch ? s.cls.crouchSpd : s.run ? (s.cls.run || SPD.run) : SPD.walk; if (s.boostT > 0) v *= 1.5; else if (s.hasteT > 0) v *= 1.1; return v; }
+function hbBand(s) { let b = 0; for (const K of G.Ks) { if (K.cloak) continue; const d = hyp(K.x - s.x, K.y - s.y), R = K.tr, q = d < R / 3 ? 3 : d < R * 2 / 3 ? 2 : d < R ? 1 : 0; if (q > b) b = q; } return b; }
+
+function kill(s, why) { const sl0 = s.hook && s.hook.slots[0]; s.dx = sl0 ? sl0.x : s.x; s.dy = sl0 ? sl0.y : s.y; if (s.hook) { s.hook.occ = null; s.hook.broken = hooks.filter(h => !h.broken).length > 4; s.hook = null; } for (const k of G.Ks) if (k.carry === s) k.carry = null; s.state = 'dead'; s.fate = why; s.action = null; ev('death', { s, x: s.x, y: s.y }); }
+function escapeS(s, how) { s.state = 'escaped'; s.fate = how || 'escaped'; s.action = null; ev('escape', { s }); }
+function unhook(t, by) {
+  const h = t.hook; t.state = 'free'; t.hook = null; if (h) { h.occ = null; const sl = h.slots[0]; if (sl) { t.x = sl.x; t.y = sl.y; } }
+  t.health = 1; t.endT = 10; t.hasteT = 10; t.healP = 0; t.unhookT = G.t; t.pc = -1;
+  ev('unhook', { s: t, by, x: t.x, y: t.y }); if (by && by.isPlayer) G.stats.unhooks++;
+  if (by) hbNoise(t.x, t.y, 6, 6, by);
+}
+function completeGen(g) {
+  g.done = true; g.p = GEN_CHARGES; g.regress = false;
+  if (MAP.obj.kind === 'crates' && !g.has) { ev('empty', { x: g.x, y: g.y }); return; }
+  G.gensDone++; ev('gen', { x: g.x, y: g.y, g });
+  hbAssoc(g.x, g.y, 7);
+  if (G.gensDone >= GENS_NEEDED && !G.powered) { G.powered = true; G.poweredT = G.t; ev('powered'); }
+}
+function genExplode(g, s) { g.p = Math.max(0, g.p - 9); g.boomT = G.t; s.lockT = 1.6; ev('boom', { x: g.x, y: g.y }); for (const o of G.surv) if (o.state === 'free' && !G.sees[o.id]) hbNoise(g.x, g.y, 6, o === s ? 9 : 2.5, o); }
+function openGate(g) { g.open = true; g.p = GATE_T; for (const n of g.tiles) tiles[n] = GATE_OPEN; if (G.egc < 0) G.egc = EGC_T; ev('gate', { x: g.x, y: g.y }); }
+function startVault(s, w, fast) {
+  const isWin = w.win !== undefined ? w.win : tiles[(tidx(s.x, s.y) + w.n) >> 1] === WINDOW;
+  s.vault = { x0: s.x, y0: s.y, x1: w.x, y1: w.y, t: 0, dur: isWin ? (fast ? s.cls.vault : s.cls.vault + 0.4) : 1.1 }; s.action = null;
+  ev('vault', { x: s.x, y: s.y, fast });
+  if (fast && kNear(s.x, s.y) < 36 && !G.sees[s.id]) hbNoise(w.x, w.y, 5, 8, s);
+}
+function dropPallet(p, by) {
+  p.state = 'down'; tiles[p.n] = PAL_DN; ev('pallet', { x: p.x, y: p.y });
+  const side = (e) => { const o = p.axis === 0 ? e.x - p.x : e.y - p.y; return o >= 0 ? 1 : -1; };
+  const push = (e) => { if (Math.abs(e.x - p.x) < T / 2 + e.r && Math.abs(e.y - p.y) < T / 2 + e.r) { const sd = side(e); if (p.axis === 0) { e.x = p.x + sd * (T / 2 + e.r + 0.05); e.y = p.y; } else { e.y = p.y + sd * (T / 2 + e.r + 0.05); e.x = p.x; } } };
+  for (const s of G.surv) if (s.state === 'free') push(s);
+  for (const K of G.Ks) { if (hyp(K.x - p.x, K.y - p.y) < 1.75 && K.st !== 'stun') { stunKiller(K.type.stun + ((by && by.cls.stunBonus) || 0), K); ev('stun', { x: K.x, y: K.y }); } push(K); }
+  if (by && !G.sees[by.id]) hbNoise(p.x, p.y, 5, 8, by);
+}
+function stunKiller(t, K) { K = K || G.K; if (K.carry) { const s = K.carry; K.carry = null; s.state = 'free'; s.health = 1; s.healP = 0; s.boostT = 1.5; s.pc = -1; const n = walkNear(K.x, K.y, false); s.x = (n % MW + .5) * T; s.y = (((n / MW) | 0) + .5) * T; ev('wiggle', { s }); } K.st = 'stun'; K.tmr = t; K.vault = null; }
+
+/* what the big button does right now, for a human player */
+function playerContext(s) {
+  if (s.state === 'carried') return { label: 'Wiggle', go: () => { s.wig += 0.012; } };
+  if (s.state === 'hooked') return (s.stage === 1 && s.tries > 0) ? { label: 'Try to escape', sub: '4% chance', go: () => { s.tries--; if (Math.random() < 0.04) unhook(s, null); else { s.hookT -= 14; ev('tryfail', { s }); } } } : null;
+  if (s.state !== 'free' || s.vault || s.health === 2) return null;
+  const near = (o, r) => hyp(o.x - s.x, o.y - s.y) < r;
+  const moving = hyp((s.inp || INPUT).jx, (s.inp || INPUT).jy) > 0.18;
+  if (G.hatch && near(G.hatch, 1.8)) return { label: 'Escape', sub: 'hatch', go: () => escapeS(s, 'escaped through the hatch') };
+  for (const o of G.surv) if (o !== s && o.state === 'hooked' && near(o.hook, 2.7)) return { label: 'Unhook', sub: o.name, go: () => { s.action = { type: 'unhook', ref: o, p: 0 }; } };
+  let best = null, bd = 9;
+  const vaultOpt = (w, isWin) => {
+    const along = w.axis === 0 ? s.x - w.x : s.y - w.y, across = w.axis === 0 ? s.y - w.y : s.x - w.x;
+    if (Math.abs(across) > 1.05 || Math.abs(along) < 0.8 || Math.abs(along) > 2.35) return;
+    const d = Math.abs(along) + Math.abs(across); if (d >= bd) return;
+    const sg = along > 0 ? -1 : 1, dest = { x: w.x + (w.axis === 0 ? sg * T : 0), y: w.y + (w.axis === 1 ? sg * T : 0), n: 0, win: isWin };
+    if (solidS(tX(dest.x), tX(dest.y))) return; bd = d;
+    best = { label: 'Vault', go: () => startVault(s, dest, moving && s.run) };
+  };
+  for (const w of windows) vaultOpt(w, true);
+  for (const p of pallets) { if (p.state === 'down') vaultOpt(p, false); else if (p.state === 'up' && near(p, 2.0)) { const d = hyp(p.x - s.x, p.y - s.y) - 0.5; if (d < bd) { bd = d; best = { label: 'Drop pallet', go: () => dropPallet(p, s) }; } } }
+  if (best) return best;
+  if (s.cls.id === 4 && s.stage < 2) for (const o of G.surv) if (o.state === 'dead' && o.fate !== 'taken by the collapse' && hyp(o.dx - s.x, o.dy - s.y) < 2.7) return { label: 'Raise', sub: o.name, go: () => { s.action = { type: 'revive', ref: o, p: 0 }; } };
+  for (const o of G.surv) if (o !== s && o.state === 'free' && o.health === 2 && near(o, 2.0)) return { label: 'Heal', sub: o.name, go: () => { s.action = { type: 'heal', ref: o }; } };
+  if (!G.powered) for (const g of gens) if (!g.done && near(g, 2.45)) return { label: MAP.obj.verb, go: () => { s.action = { type: 'repair', ref: g }; } };
+  for (const o of G.surv) if (o !== s && o.state === 'free' && o.health === 1 && near(o, 2.0)) return { label: 'Heal', sub: o.name, go: () => { s.action = { type: 'heal', ref: o }; } };
+  if (G.powered && radio && !radio.done && hyp(radio.x - s.x, radio.y - s.y) < 2.5) return { label: 'Radio', sub: 'call the lift', go: () => { s.action = { type: 'radio', ref: radio }; } };
+  if (G.powered && MAP.obj.exit !== 'lift') for (const g of gates) if (!g.open && hyp(g.sx - s.x, g.sy - s.y) < 2.7) return { label: MAP.obj.exit === 'vault' ? 'Unlock door' : 'Open gate', go: () => { s.action = { type: 'gate', ref: g }; } };
+  return null;
+}
+function abilityInfo(s) {                                                // what the ability button shows, if this role has one
+  const c = s.cls.id, cd = s.abT > 0 ? Math.ceil(s.abT) + ' s' : '';
+  if (c === 1) return { label: cd || 'Sprint', ready: s.abT <= 0, frac: 1 - s.abT / 40 };
+  if (c === 2) return { label: 'Patch up', ready: s.health === 1 && !s.action, frac: 1 };
+  if (c === 6) return { label: cd || 'Shoot', ready: s.abT <= 0 && !s.action && !!aimTarget(s), frac: 1 - s.abT / 90 };
+  if (c === 7) return { label: cd || 'Decoy', ready: s.abT <= 0 && !G.sees[s.id], frac: 1 - s.abT / 45 };
+  return null;
+}
+function aimTarget(s) { let b = null, bd = 10.5; for (const K of G.Ks) { if (K.dead) continue; const d = hyp(K.x - s.x, K.y - s.y); if (d < bd && los(s.x, s.y, K.x, K.y)) { bd = d; b = K; } } return b; }
+function woundHunter(K, by) {
+  K.wounds = (K.wounds || 0) + 1; by.markedT = G.t + 25; ev('shot', { x: K.x, y: K.y, K }); G.HB.tr[by.id].pin(by.x, by.y, 0, 0);   // the shot gives the shooter away
+  if (K.wounds >= 4) killHunter(K); else stunKiller(6.5, K);
+}
+function killHunter(K) {
+  if (K.carry) stunKiller(0.1, K);
+  K.dead = true; K.st = 'dead'; K.goal = null; K.chase = null; K.path = null; K.cloak = false; K.deadX = K.x; K.deadY = K.y; K.x = K.y = -1000;
+  G.SB.trs[K.idx].pin(-1000, -1000, 0, 0); G.SB.seenK[K.idx] = true; ev('hunterdead', { K });
+  if (G.Ks.every(k => k.dead)) for (const s of G.surv) if (s.state !== 'dead' && s.state !== 'escaped') { if (s.hook) { s.hook.occ = null; s.hook = null; } escapeS(s, 'outlived the hunt'); }
+}
+function reviveSurv(t) {
+  const n = walkNear(t.dx, t.dy, false);
+  Object.assign(t, { state: 'free', fate: '', health: 1, stage: 2, x: (n % MW + .5) * T, y: (((n / MW) | 0) + .5) * T, hook: null, carrier: null, action: null, vault: null, healP: 0, bleed: BLEED_T, wig: 0, endT: 6, hasteT: 8, unhookT: G.t, pc: -1, guard: 0, goal: null, path: null });
+  G.HB.tr[t.id].pin(t.x, t.y, 0, 0); if (t.human) G.ff = false; ev('revived', { s: t, x: t.x, y: t.y });
+}
+function useAbility(s) {
+  if (s.state !== 'free' || s.health === 2 || s.vault) return false;
+  if (s.cls.id === 1 && s.abT <= 0) { s.boostT = 3; s.abT = 40; ev('sprint', { x: s.x, y: s.y }); return true; }
+  if (s.cls.id === 2 && s.health === 1 && !s.action) { s.action = { type: 'selfheal', ref: s }; return true; }
+  if (s.cls.id === 6 && s.abT <= 0 && !s.action) { const K = aimTarget(s); if (K) { s.action = { type: 'aim', ref: K, p: 0 }; return true; } }
+  if (s.cls.id === 7 && s.abT <= 0) { const tr = G.HB.tr[s.id]; if (tr.pinned) return false; s.decoy = { x: s.x, y: s.y, t: G.t }; s.abT = 45; tr.known(s.x, s.y, 0, 0, hunterCtx(s), phaseNow()); ev('decoy', { x: s.x, y: s.y }); return true; }
+  return false;
+}
+function playerControl(s) {
+  const I = s.inp || INPUT; s.ix = s.iy = 0;
+  const m = Math.min(1, hyp(I.jx, I.jy));
+  if (s.state === 'free') { s.crouch = I.crouch && s.health < 2; if (m > 0.18) { s.ix = I.jx / hyp(I.jx, I.jy); s.iy = I.jy / hyp(I.jx, I.jy); s.run = m > 0.78 && !s.crouch; } }
+  if (I.ab) { I.ab = false; useAbility(s); }
+  if (I.act) { I.act = false; if (s.sc && s.sc.phase === 2) resolveSC(s); else if (!(s.sc && s.sc.phase === 1)) { const c = playerContext(s); if (c) c.go(); } }
+}
+function updateSC(dt) { if (G.autoplay) return; for (const p of G.surv) if (p.human) updateSC1(p, dt); }   // every human gets their own skill checks
+function updateSC1(p, dt) {
+  const sc = p.sc;
+  if (sc && sc.phase === 3) { sc.t -= dt; if (sc.t <= 0) { p.sc = null; p.scNext = rnd(4, 11); } return; }
+  const acting = p.state === 'free' && p.action && ((p.action.type === 'repair' && MAP.obj.sc) || p.action.type === 'heal' || p.action.type === 'selfheal') && p.lockT <= 0;
+  if (!sc) { if (acting) { p.scNext -= dt; if (p.scNext <= 0) { p.sc = { phase: 1, t: 0.6, a0: rnd(0.42, 0.8) * TAU, ang: 0, type: p.action.type, ref: p.action.ref, res: '' }; ev('scwarn', { s: p }); } } return; }
+  if (!acting) { p.sc = null; p.scNext = rnd(4, 10); return; }
+  if (sc.phase === 1) { sc.t -= dt; if (sc.t <= 0) { sc.phase = 2; sc.ang = 0; } }
+  else { sc.ang += TAU / 1.2 * dt; if (sc.ang > sc.a0 + scGreat(p) + SC_GOOD + 0.14) scResult(p, 'fail'); }
+}
+function resolveSC(p) { const sc = p.sc, a = sc.ang; scResult(p, (a >= sc.a0 - 0.04 && a <= sc.a0 + scGreat(p)) ? 'great' : (a > sc.a0 + scGreat(p) && a <= sc.a0 + scGreat(p) + SC_GOOD + 0.03) ? 'good' : 'fail'); }
+function scResult(p, r) {
+  const sc = p.sc; sc.phase = 3; sc.t = 0.55; sc.res = r; ev('sc' + r, { s: p });
+  if (r === 'great') { G.stats.greats++; if (sc.type === 'repair') sc.ref.p = Math.min(GEN_CHARGES - 0.01, sc.ref.p + 0.9); else sc.ref.healP += 0.5; }
+  if (r === 'fail') { if (sc.type === 'repair') genExplode(sc.ref, p); else { sc.ref.healP = Math.max(0, sc.ref.healP - 1.6); p.lockT = 1.2; hbNoise(p.x, p.y, 5, 6, p); } }
+}
+
+function doAction(s, dt) {
+  const a = s.action; if (s.lockT > 0) return;
+  if (a.type === 'repair') {
+    const g = a.ref; if (g.done || G.powered || hyp(g.x - s.x, g.y - s.y) > 2.6) { s.action = null; return; }
+    g.usersNow++; const eff = [1, 1, 0.85, 0.7, 0.55][Math.min(4, Math.max(1, g.users))];
+    const er = eff * s.cls.repair; g.p += er * dt; g.regress = false; if (s.isPlayer) G.stats.repair += er * dt;
+    if (MAP.obj.sc && isBot(s) && Math.random() < G.siq.fail * dt) genExplode(g, s);
+    if (g.p >= GEN_CHARGES) { completeGen(g); s.action = null; }
+  } else if (a.type === 'heal') {
+    const t = a.ref; if (t.state !== 'free' || t.health === 0 || t.vault || hyp(t.x - s.x, t.y - s.y) > 2.3) { s.action = null; return; }
+    t.healP += dt * s.cls.heal / (t.cls.healNeed || 1); t.heldT = 0.35;
+    if (t.healP >= HEAL_T) { t.healP = 0; t.health--; t.bleed = BLEED_T; if (t.health === 0) t.guard = t.cls.guard || 0; s.action = null; ev('healed', { s: t }); if (s.isPlayer) G.stats.heals++; }
+  } else if (a.type === 'selfheal') {
+    if (s.health !== 1) { s.action = null; return; }
+    s.healP += dt * HEAL_T / 24; if (s.healP >= HEAL_T) { s.healP = 0; s.health = 0; s.action = null; ev('healed', { s }); }
+  } else if (a.type === 'unhook') {
+    const t = a.ref; if (t.state !== 'hooked' || hyp(t.hook.x - s.x, t.hook.y - s.y) > 3) { s.action = null; return; }
+    a.p += dt; if (a.p >= 1) { unhook(t, s); s.action = null; }
+  } else if (a.type === 'aim') {
+    const K = a.ref; if (K.dead || hyp(K.x - s.x, K.y - s.y) > 11.5 || !los(s.x, s.y, K.x, K.y)) { s.action = null; return; }
+    s.face = Math.atan2(K.y - s.y, K.x - s.x); a.p += dt; if (a.p >= 1.2) { s.action = null; s.abT = 90; if (K.st !== 'free' || Math.random() < 0.75) woundHunter(K, s); else { ev('boltmiss', { x: K.x, y: K.y, K }); s.markedT = G.t + 15; G.HB.tr[s.id].pin(s.x, s.y, 0, 0); } }
+  } else if (a.type === 'revive') {
+    const t = a.ref; if (t.state !== 'dead' || s.stage >= 2 || hyp(t.dx - s.x, t.dy - s.y) > 3.1) { s.action = null; return; }
+    if (a.p === 0) { ev('ritual', { x: s.x, y: s.y, s }); if (!G.sees[s.id]) hbNoise(s.x, s.y, 5, 40, s); }
+    a.p += dt; if (a.p >= 25) { s.action = null; s.stage++; if (s.isPlayer) G.stats.raised = (G.stats.raised || 0) + 1; reviveSurv(t); }
+  } else if (a.type === 'radio') {
+    const r = radio; if (!r || r.done || !G.powered || hyp(r.x - s.x, r.y - s.y) > 3) { s.action = null; return; }
+    r.p += dt; if (r.p >= MAP.obj.radioT) { r.done = true; G.evacT = MAP.obj.waitT; s.action = null; ev('radio', { x: r.x, y: r.y }); hbAssoc(r.x, r.y, 6); }
+  } else if (a.type === 'gate') {
+    const g = a.ref; if (!G.powered || g.open || hyp(g.sx - s.x, g.sy - s.y) > 3) { s.action = null; return; }
+    g.p += dt; if (g.p >= GATE_T) { openGate(g); s.action = null; }
+  }
+}
+function updateSurv(s, dt) {
+  if (s.state === 'dead' || s.state === 'escaped') return;
+  if (s.boostT > 0) s.boostT -= dt; if (s.hasteT > 0) s.hasteT -= dt; if (s.endT > 0) s.endT -= dt; if (s.lockT > 0) s.lockT -= dt; if (s.heldT > 0) s.heldT -= dt; if (s.abT > 0) s.abT -= dt;
+  s.vx = s.vy = 0; s.moving = false;
+  if (s.state === 'hooked') { s.hookT -= dt; if (!G.anyUp) { kill(s, 'sacrificed'); return; } if (s.hookT <= 0) { s.stage++; if (s.stage >= 3) kill(s, 'sacrificed'); else { s.hookT = HOOK_STAGE; ev('struggle', { s }); } } return; }
+  if (s.state === 'carried') { const K = s.carrier || G.K; s.x = K.x; s.y = K.y; s.wig += dt / 16; if (s.wig >= 1) { stunKiller(1.5, K); } return; }
+  if (s.vault) { const v = s.vault; v.t += dt; const f = Math.min(1, v.t / v.dur); s.x = lerp(v.x0, v.x1, f); s.y = lerp(v.y0, v.y1, f); s.vx = (v.x1 - v.x0) / v.dur; s.vy = (v.y1 - v.y0) / v.dur; if (f >= 1) s.vault = null; return; }
+  if (s.health === 2) { s.bleed -= dt; if (s.bleed <= 0) { kill(s, 'bled out'); return; } if (s.healP < HEAL_T * 0.95) s.healP += dt * 0.5; s.action = null; s.crouch = false; }
+  const mag = hyp(s.ix, s.iy);
+  if (mag > 0.05) {
+    const sp = survSpeed(s), ox = s.x, oy = s.y; moveEnt(s, s.ix / mag * sp * dt, s.iy / mag * sp * dt, false);
+    s.vx = (s.x - ox) / dt; s.vy = (s.y - oy) / dt; s.face = Math.atan2(s.iy, s.ix); s.moving = true; s.action = null;
+    if (s.health < 2 && !s.crouch && hyp(s.vx, s.vy) > 3.4) { s.markT -= dt; if (s.markT <= 0) { s.markT = 0.22; G.marks.push({ x: s.x + rnd(-.7, .7), y: s.y + rnd(-.7, .7), t: G.t, o: s.id, k: 0, a: rnd(TAU), life: MARK_LIFE * s.cls.markLife }); } }
+  }
+  if (s.health === 1) { s.bloodT -= dt; if (s.bloodT <= 0) { s.bloodT = 1.5; G.marks.push({ x: s.x + rnd(-.3, .3), y: s.y + rnd(-.3, .3), t: G.t, o: s.id, k: 1, a: rnd(TAU), life: MARK_LIFE }); } }
+  if (tiles[tidx(s.x, s.y)] === GATE_OPEN) { escapeS(s); return; }
+  if (s.action) doAction(s, dt);
+}
+
+/* ---------- survivor bots: decisions are driven by the shared belief about the hunter ---------- */
+function getKField() { const SB = G.SB; if (G.t - SB.kfT > 0.24) { SB.kfT = G.t; const src = SB.trs.filter((t, k) => !G.Ks[k].dead).map(t => walkNear(t.est.x, t.est.y, true)); if (!src.length) src.push(floorList[0]); field(SB.kf, src[0], true, 5, src); } return SB.kf; }
+function pNear(x, y, r) { const SB = G.SB; let m = 0; for (let k = 0; k < SB.trs.length; k++) m = Math.max(m, SB.seenK[k] ? (hyp(G.Ks[k].x - x, G.Ks[k].y - y) < r ? 1 : 0) : SB.trs[k].massNear(x, y, r)); return m; }
+function sbFor(s) { const SB = G.SB; let b = 0, bd = 1e9; for (let k = 0; k < SB.trs.length; k++) { if (G.Ks[k].dead) continue; const e = SB.trs[k].est, d = hyp(e.x - s.x, e.y - s.y) / Math.max(0.2, e.conf); if (d < bd) { bd = d; b = k; } } return b; }   // which hunter worries this survivor most
+function botThink(s) {
+  if (s.state !== 'free' || s.vault) return;
+  const ki = sbFor(s), est = G.SB.trs[ki].est, seenK = G.SB.seenK[ki], kd = hyp(est.x - s.x, est.y - s.y), band = hbBand(s);
+  const chased = G.Ks.some(k => k.chase === s) && G.t - G.seenT[s.id] < 2;
+  if (s.health === 2) { s.goal = { type: 'crawl' }; s.path = null; if (s.heldT <= 0 && kd < 14 && est.conf > 0.4 && kd > 0.1) { s.ix = (s.x - est.x) / kd; s.iy = (s.y - est.y) / kd; } else s.ix = s.iy = 0; return; }
+  field(s.F, tidx(s.x, s.y), false, 0);
+  const approaching = kd < s.kdPrev - 0.15; s.kdPrev = kd;
+  let mode = null;
+  if (chased || (seenK && kd < G.siq.fleeD)) { mode = 'flee'; s.fleeT = G.t + 3; }
+  else if (s.fleeT > G.t) mode = 'flee';
+  else if (band >= G.siq.evBand || (G.siq.mem && ((est.conf > 0.5 && kd < G.siq.evD && approaching) || pNear(s.x, s.y, 13) > 0.6))) { mode = 'evade'; s.evadeT = G.t + 2.5; }
+  else if (s.evadeT > G.t) mode = 'evade';
+  if (mode) pickFlee(s, mode, est); else if (s.heldT > 0) { s.goal = { type: 'wait' }; s.path = null; } else pickObjective(s);
+}
+function pickFlee(s, mode, est) {
+  const kf = getKField(), F = s.F; let best = -1e9;
+  for (let n = 0; n < N; n++) { const ds = F.d[n]; if (ds > 17 || ds < 1.5) continue; let sc = Math.min(kf.d[n], 40) - 1.25 * ds; if (kf.d[n] < ds + 0.5) sc -= 8; if (tiles[n] === GATE_OPEN) sc += 60; if (sc > best) best = sc; }
+  let bn = -1, bs = -1e9, cnt = 0;
+  for (let n = 0; n < N; n++) { const ds = F.d[n]; if (ds > 17 || ds < 1.5) continue; let sc = Math.min(kf.d[n], 40) - 1.25 * ds; if (kf.d[n] < ds + 0.5) sc -= 8; if (tiles[n] === GATE_OPEN) sc += 60; if (sc < best - 4) continue; if (cnt++ < 50 && !los(est.x, est.y, (n % MW + .5) * T, (((n / MW) | 0) + .5) * T)) sc += 3; if (n === s.fleeN) sc += 2.5; if (sc > bs) { bs = sc; bn = n; } }
+  s.fleeN = bn; s.goal = { type: mode }; if (bn >= 0) setPath(s, F, bn); else s.path = null;
+}
+function pickObjective(s) {
+  const F = s.F, cur = s.goal; let best = null, bu = -1e9;
+  const consider = (u, g) => { if (cur && cur.type === g.type && cur.ref === g.ref) u += 6; if (u > bu) { bu = u; best = g; } };
+  const bestSlot = (slots) => { let b = null, bd = 1e9; for (const sl of slots) { if (G.surv.some(o => o !== s && o.state === 'free' && hyp(o.x - sl.x, o.y - sl.y) < 0.7)) continue; if (F.d[sl.n] < bd) { bd = F.d[sl.n]; b = sl; } } return b; };
+  if (G.hatch && hyp(G.hatch.x - s.x, G.hatch.y - s.y) < 16 && los(s.x, s.y, G.hatch.x, G.hatch.y)) consider(300, { type: 'hatch', ref: G.hatch, n: walkNear(G.hatch.x, G.hatch.y, false) });
+  if (G.powered && radio && !radio.done) consider(80 - F.d[radio.n] * 0.6 - 30 * pNear(radio.x, radio.y, 12) - (G.surv.some(o => o !== s && o.action && o.action.type === 'radio') ? 40 : 0), { type: 'radio', ref: radio, n: radio.n });
+  if (G.powered) for (const g of gates) {
+    if (g.open) consider(200 - F.d[g.sn], { type: 'exit', ref: g, n: g.tiles[1] });
+    else if (MAP.obj.exit !== 'lift') consider(70 - F.d[g.sn] * 0.8 - 40 * pNear(g.sx, g.sy, 14), { type: 'gate', ref: g, n: g.sn });
+    else if (radio.done) consider(60 - F.d[g.sn] * 0.5 - 60 * pNear(g.sx, g.sy, 16), { type: 'stage', ref: g, n: g.sn });
+  }
+  for (const o of G.surv) {
+    if (o === s) continue;
+    if (o.state === 'hooked') {
+      const sl = bestSlot(o.hook.slots); if (!sl) continue; const d = F.d[sl.n], my = hyp(o.x - s.x, o.y - s.y);
+      const urgent = o.hookT < 30, risk = pNear(o.hook.x, o.hook.y, 12);
+      const better = G.surv.some(q => q !== s && q !== o && q.state === 'free' && q.health < 2 && isBot(q) && !(q.goal && q.goal.type === 'flee') && hyp(o.x - q.x, o.y - q.y) < my - 0.1);
+      if (better && !urgent) continue; if (G.egc > 0 && G.egc < 30) continue;
+      consider(85 - d * 0.5 - 45 * risk + (urgent ? 40 : 0), { type: 'unhook', ref: o, slot: sl, n: sl.n });
+    } else if (o.state === 'free' && o.health > 0) {
+      if (o.goal && (o.goal.type === 'flee' || o.goal.type === 'evade') && isBot(o)) continue;
+      if (!isBot(o) && o.health === 1 && hyp(o.vx, o.vy) > 2.6) continue;
+      if (hyp(o.x - s.x, o.y - s.y) > 30) continue;
+      if (G.surv.some(q => q !== s && q !== o && q.goal && q.goal.type === 'heal' && q.goal.ref === o && isBot(q) && q.state === 'free' && q.id < s.id)) continue;
+      const n = walkNear(o.x, o.y, false);
+      consider((o.health === 2 ? 78 : 50) - F.d[n] * 0.7 - 45 * pNear(o.x, o.y, 11), { type: 'heal', ref: o, n });
+    }
+  }
+  if (s.cls.id === 4 && s.stage < 2 && !(G.egc >= 0 && G.egc < 50)) for (const o of G.surv) { if (o.state !== 'dead' || o.fate === 'taken by the collapse') continue; const n = walkNear(o.dx, o.dy, false); consider(66 - F.d[n] * 0.5 - 50 * pNear(o.dx, o.dy, 14), { type: 'revive', ref: o, n }); }
+  if (G.siq.abil && s.cls.id === 2 && s.health === 1) consider(47 - 30 * pNear(s.x, s.y, 14), { type: 'selfheal', ref: s, n: tidx(s.x, s.y) });
+  if (!G.powered) for (const g of gens) {
+    if (g.done) continue; const sl = bestSlot(g.slots); if (!sl) continue;
+    const nrep = G.surv.filter(o => o !== s && o.state === 'free' && ((o.action && o.action.ref === g) || (o.goal && o.goal.ref === g))).length;
+    consider(40 + 22 * (g.p / GEN_CHARGES) - F.d[sl.n] * 0.55 - 45 * pNear(g.x, g.y, 14) - (nrep >= 2 ? G.siq.stack2 : 0) + (nrep === 1 ? G.siq.stack1 : 0), { type: 'repair', ref: g, slot: sl, n: sl.n });
+  }
+  s.goal = best; if (best) setPath(s, F, best.n); else s.path = null;
+}
+function botAct(s, dt) {
+  if (s.state !== 'free' || s.vault) { if (s.state !== 'free') { s.ix = s.iy = 0; } return; }
+  if (s.health === 2) return;
+  const g = s.goal; s.ix = s.iy = 0; s.crouch = false; if (!g) return;
+  const K = nearK(s.x, s.y), seenK = G.SB.seenK[K.idx], flee = g.type === 'flee', kd = hyp(K.x - s.x, K.y - s.y);
+  if (s.action && (s.action.type === 'aim' || s.action.type === 'revive')) { if (s.action.type === 'revive' && (flee || g.type === 'evade')) s.action = null; else return; }
+  if (G.siq.abil && s.cls.id === 6 && s.abT <= 0 && !s.action && seenK && !K.dead && kd < 10.5 && (kd > 7.8 || K.st !== 'free') && useAbility(s)) return;   // shoot while it is still far enough away, or busy
+  if (flee || g.type === 'evade') {   // throw pallets down between us and the hunter
+    if (G.siq.abil && s.cls.id === 7 && s.abT <= 0 && !seenK && kd < 24) useAbility(s);
+    if (G.siq.abil && flee && s.cls.id === 1 && s.abT <= 0 && kd < 7 && seenK) useAbility(s);
+    if (G.siq.pallets && seenK && kd < 5.2) for (const p of pallets) { if (p.state !== 'up' || hyp(p.x - s.x, p.y - s.y) > 2.2) continue; const so = p.axis === 0 ? s.x - p.x : s.y - p.y, ko = p.axis === 0 ? K.x - p.x : K.y - p.y; if (Math.abs(so) > 0.95 && (so * ko < 0 || Math.abs(ko) < 0.9)) { dropPallet(p, s); break; } }
+  } else if (s.heldT > 0) { s.action = null; return; }
+  else if (g.type === 'repair') { if (hyp(g.slot.x - s.x, g.slot.y - s.y) < 0.5) { if (!s.action && !g.ref.done) s.action = { type: 'repair', ref: g.ref }; return; } }
+  else if (g.type === 'unhook') { if (hyp(g.slot.x - s.x, g.slot.y - s.y) < 0.6) { if (!s.action && g.ref.state === 'hooked') s.action = { type: 'unhook', ref: g.ref, p: 0 }; return; } }
+  else if (g.type === 'heal') { if (hyp(g.ref.x - s.x, g.ref.y - s.y) < 1.5) { if (!s.action) s.action = { type: 'heal', ref: g.ref }; return; } }
+  else if (g.type === 'gate') { if (hyp(g.ref.sx - s.x, g.ref.sy - s.y) < 1.0) { if (!s.action) s.action = { type: 'gate', ref: g.ref }; return; } }
+  else if (g.type === 'hatch') { if (G.hatch && hyp(G.hatch.x - s.x, G.hatch.y - s.y) < 1.7) { escapeS(s, 'escaped through the hatch'); return; } }
+  else if (g.type === 'revive') { if (hyp(g.ref.dx - s.x, g.ref.dy - s.y) < 2.9) { if (!s.action && g.ref.state === 'dead') s.action = { type: 'revive', ref: g.ref, p: 0 }; return; } }
+  else if (g.type === 'radio') { if (hyp(radio.x - s.x, radio.y - s.y) < 1.7) { if (!s.action && !radio.done) s.action = { type: 'radio', ref: radio }; return; } }
+  else if (g.type === 'selfheal') { if (!s.action) useAbility(s); return; }
+  else if (g.type === 'wait') return;
+  let w = steerPath(s, false);
+  if (!w) { const fp = g.slot || (g.type === 'heal' ? g.ref : g.type === 'gate' ? { x: g.ref.sx, y: g.ref.sy } : g.type === 'hatch' ? g.ref : null); if (!fp) return; w = fp; }
+  if (w.vault) { startVault(s, w.vault, flee); s.pi++; return; }
+  const d = hyp(w.x - s.x, w.y - s.y); if (d < 0.02) return;
+  s.ix = (w.x - s.x) / d; s.iy = (w.y - s.y) / d;
+  s.run = flee || (g.type === 'evade' ? hyp(G.SB.trs[sbFor(s)].est.x - s.x, G.SB.trs[sbFor(s)].est.y - s.y) < 13 : hbBand(s) < G.siq.runBand);
+  if (s.cls.id === 3 && g.type === 'evade' && !s.run) s.crouch = true;
+  // unstick
+  s.stuckT += dt; if (s.stuckT > 1.2) { if (hyp(s.x - s.lx, s.y - s.ly) < 0.4) { const a = rnd(TAU); moveEnt(s, Math.cos(a) * 0.4, Math.sin(a) * 0.4, false); s.think = 0; } s.stuckT = 0; s.lx = s.x; s.ly = s.y; }
+}
+
+/* =====================================================================
+   THE HUNTER
+   ===================================================================== */
+function killerPerceive() {
+  for (const s of G.surv) {
+    let seen = false;
+    if (s.state === 'free') for (const K of G.Ks) { if (seen) break; if (K.dead) continue; const d = hyp(s.x - K.x, s.y - K.y); if (d < 3.2) seen = los(K.x, K.y, s.x, s.y); else if (d < (s.crouch ? Math.min(s.cls.crouchSee, G.hiq.range) : G.hiq.range) && Math.abs(angDiff(Math.atan2(s.y - K.y, s.x - K.x), K.face)) < G.hiq.cone) seen = los(K.x, K.y, s.x, s.y); }
+    G.sees[s.id] = seen; if (seen) G.seenT[s.id] = G.t;
+  }
+}
+function killerThink() {
+  const K = G.K; if (K.st !== 'free') return;
+  const F = K.F; field(F, tidx(K.x, K.y), true, 0);
+  if (K.carry) {
+    let bh = null, bs = null, bd = 1e9; for (const h of hooks) { if (h.occ || h.broken) continue; for (const sl of h.slots) if (F.d[sl.n] < bd) { bd = F.d[sl.n]; bh = h; bs = sl; } }
+    K.goal = bh ? { type: 'hook', ref: bh, slot: bs } : null; if (bh) setPath(K, F, bs.n); K.chase = null; return;
+  }
+  const cur = K.goal; let best = null, bu = 0;
+  for (const s of G.surv) {
+    if (s.state !== 'free') continue;
+    const seen = K.sees[s.id], e = G.HB.tr[s.id].est, px = seen ? s.x : e.x, py = seen ? s.y : e.y;
+    const tn = walkNear(px, py, true), tm = F.d[tn] * T / SPD.killer + 1.2;
+    let val = s.health === 2 ? 1.5 : s.health === 1 ? 1.2 : 1; if (G.t - s.unhookT < 14) val *= 0.3; if (G.t < s.markedT) val *= 1.7;
+    let u = (s.health === 2 ? 4 * Math.max(e.conf, seen ? 1 : 0) : seen ? 2.5 : e.conf) * val / tm;
+    if (cur && cur.ref === s && (cur.type === 'chase' || cur.type === 'pickup')) u *= 1.4;
+    if (G.Ks.length > 1 && G.Ks.some(o => o !== K && o.goal && o.goal.ref === s)) u *= (s.health === 2 ? 0.15 : 0.5);   // hunters split up rather than crowd one target
+    if (u > bu) { bu = u; best = { type: s.health === 2 ? 'pickup' : 'chase', ref: s, n: tn, seen }; }
+  }
+  const patrol = (o, slots, kick) => {
+    let bs = null, bd = 1e9; for (const sl of slots) if (F.d[sl.n] < bd) { bd = F.d[sl.n]; bs = sl; } if (!bs) return;
+    const tm = bd * T / SPD.killer + 2; let u = 0.06 * (0.3 + Math.min(1.5, (G.t - o.visitT) / 40)) / tm, type = 'patrol';
+    if (kick) { u += 0.35 * (o.seenP / GEN_CHARGES) / tm; type = 'kick'; }
+    if (cur && cur.ref === o) u *= 1.3; if (G.Ks.length > 1 && G.Ks.some(q => q !== K && q.goal && q.goal.ref === o)) u *= 0.3;
+    if (u > bu) { bu = u; best = { type, ref: o, slot: bs, n: bs.n }; }
+  };
+  if (!G.powered) for (const g of gens) { if (!g.done) patrol(g, g.slots, MAP.obj.kick && g.seenP > 8 && !g.seenReg); }
+  else { for (const g of gates) if (!g.open) patrol(g, [{ n: g.sn, x: g.sx, y: g.sy }], false); if (radio && !radio.done) patrol(radio, [radio], false); }
+  if (G.hatch && K.knowsHatch && !(best && best.seen)) { const n = walkNear(G.hatch.x, G.hatch.y, true), u = 0.5 / (F.d[n] * T / SPD.killer + 1); if (u > bu) { bu = u; best = { type: 'hatch', ref: G.hatch, n }; } }
+  K.goal = best; if (best) setPath(K, F, best.n); else K.path = null;
+  K.chase = (best && best.type === 'chase' && (best.seen || (K.chase === best.ref && G.t - K.seenT[best.ref.id] < 3))) ? best.ref : null; if (K.cloak) K.chase = null;
+}
+function hitSurv(s) {
+  const K = G.K; K.st = 'cool'; K.tmr = K.type.cool; K.bl = 0; G.stats.hits++;
+  if (s.endT > 0 || (s.guard > 0 && s.health === 1)) { if (s.endT > 0) s.endT = 0; else s.guard--; s.action = null; s.boostT = 1.8; ev('endure', { s, x: s.x, y: s.y }); }
+  else { s.health++; s.action = null; if (s.health === 1) { s.boostT = s.cls.hitBoost; ev('hit', { s, x: s.x, y: s.y }); } else { s.health = 2; s.healP = 0; s.bleed = BLEED_T; s.vault = null; s.boostT = 0; G.stats.downs++; ev('down', { s, x: s.x, y: s.y }); } }
+  sbKnown();
+}
+function hookSurv(s, h) {
+  const K = G.K; K.carry = null; s.state = 'hooked'; s.hook = h; h.occ = s; s.x = h.x; s.y = h.y; s.stage++; s.hookT = HOOK_STAGE; s.tries = 3; s.action = null; G.stats.hooks++;
+  ev('hook', { s, x: h.x, y: h.y }); sbKnown();
+  if (s.stage >= 3) kill(s, 'sacrificed');
+}
+function killerAct(dt) {
+  const K = G.K, ox = K.x, oy = K.y;
+  if (K.st !== 'free') {
+    K.tmr -= dt;
+    if (K.st === 'lunge') {
+      const s = K.lt, d = hyp(s.x - K.x, s.y - K.y) || 1; moveEnt(K, (s.x - K.x) / d * 6.9 * dt, (s.y - K.y) / d * 6.9 * dt, true); K.face = Math.atan2(s.y - K.y, s.x - K.x);
+      if (s.state === 'free' && s.health < 2 && hyp(s.x - K.x, s.y - K.y) < 1.25) hitSurv(s); else if (K.tmr <= 0 || s.state !== 'free') { K.st = 'cool'; K.tmr = 1.5; ev('miss', { x: K.x, y: K.y }); }
+    } else if (K.st === 'vault') { const v = K.vault, f = 1 - clamp(K.tmr / v.dur, 0, 1), e = f < 0.45 ? 0 : (f - 0.45) / 0.55; K.x = lerp(v.x0, v.x1, e); K.y = lerp(v.y0, v.y1, e); if (K.tmr <= 0) { K.st = 'free'; K.vault = null; } }
+    else if (K.st === 'windup') { const s = K.lt; K.face = Math.atan2(s.y - K.y, s.x - K.x); if (K.tmr <= 0) { K.st = 'charging'; K.tmr = 3; K.cdir = Math.atan2(s.y + s.vy * 0.4 - K.y, s.x + s.vx * 0.4 - K.x); } }
+    else if (K.st === 'charging') {                                        // the Brute's charge: fast, nearly straight, and walls hurt
+      const s = K.lt; if (s.state === 'free') K.cdir += clamp(angDiff(Math.atan2(s.y - K.y, s.x - K.x), K.cdir), -0.7 * dt, 0.7 * dt);
+      const bx = K.x, by = K.y; moveEnt(K, Math.cos(K.cdir) * 9.2 * dt, Math.sin(K.cdir) * 9.2 * dt, true); K.face = K.cdir;
+      let hit = null; for (const o of G.surv) if (o.state === 'free' && o.health < 2 && hyp(o.x - K.x, o.y - K.y) < 1.3) hit = o;
+      if (hit) { K.chargeCd = 9; hitSurv(hit); }
+      else if (hyp(K.x - bx, K.y - by) < 9.2 * dt * 0.45) { K.st = 'stun'; K.tmr = 1.6; K.chargeCd = 9; ev('crash', { x: K.x, y: K.y }); }
+      else if (K.tmr <= 0) { K.st = 'cool'; K.tmr = 0.9; K.chargeCd = 9; }
+    }
+    else if (K.tmr <= 0) {
+      const st = K.st, a = K.act; K.st = 'free'; K.think = 0;
+      if (st === 'cloaking') K.cloak = true; else if (st === 'uncloak') { K.cloak = false; K.surge = 1.2; }
+      if (st === 'break') { const p = a; if (p.state === 'down') { p.state = 'gone'; tiles[p.n] = FLOOR; ev('break', { x: p.x, y: p.y }); if (G.surv.some(s => inPlay(s) && hyp(s.x - p.x, s.y - p.y) < 30)) sbKnown(); } }
+      else if (st === 'kick') { const g = a; if (!g.done) { g.p = Math.max(0, g.p - 4.5); g.regress = g.p > 0; g.seenP = g.p; g.seenReg = true; ev('kick', { x: g.x, y: g.y }); } }
+      else if (st === 'pickup') { const s = a; if (s.state === 'free' && s.health === 2 && hyp(s.x - K.x, s.y - K.y) < 3.2) { K.carry = s; s.carrier = K; s.state = 'carried'; s.wig = 0; s.action = null; ev('pickup', { s }); } }
+      else if (st === 'hooking') { if (K.carry && !a.occ && !a.broken) hookSurv(K.carry, a); }
+      else if (st === 'hatch') { if (G.hatch) { G.hatch = null; ev('hatchclose'); if (!G.powered) { G.powered = true; G.poweredT = G.t; ev('powered'); } if (G.egc < 0) G.egc = EGC_T; } }
+    }
+    K.vx = (K.x - ox) / dt; K.vy = (K.y - oy) / dt; return;
+  }
+  const g = K.goal; let tx = null, ty = 0;
+  if (g) {
+    if ((g.type === 'chase' || g.type === 'pickup') && K.sees[g.ref.id]) {
+      const s = g.ref, d = hyp(s.x - K.x, s.y - K.y);
+      if (K.cloak && d < (g.type === 'pickup' ? 2.5 : 9)) { K.st = 'uncloak'; K.tmr = 1.4; ev('bell', { x: K.x, y: K.y }); if (G.surv.some(o => inPlay(o) && hyp(o.x - K.x, o.y - K.y) < 26)) sbKnown(); return; }
+      if (K.type.id === 2 && g.type === 'chase' && K.chargeCd <= 0 && d > 7 && d < 26 && s.state === 'free' && !s.vault && walkClear(K.x, K.y, s.x, s.y, true)) { K.st = 'windup'; K.tmr = 0.6; K.lt = s; ev('roar', { x: K.x, y: K.y }); sbKnown(); return; }
+      if (g.type === 'pickup' && d < 1.5) { K.st = 'pickup'; K.tmr = 2.6; K.act = s; return; }
+      if (g.type === 'chase' && !K.cloak && d < G.hiq.lunge && s.state === 'free' && !s.vault && walkClear(K.x, K.y, s.x, s.y, true)) { K.st = 'lunge'; K.tmr = 0.4; K.lt = s; ev('lunge', { x: K.x, y: K.y }); return; }
+      const lead = Math.min(d / SPD.killer, 0.7) * G.hiq.lead, ax = s.x + s.vx * lead, ay = s.y + s.vy * lead;
+      if (walkClear(K.x, K.y, ax, ay, true)) { tx = ax; ty = ay; } else if (walkClear(K.x, K.y, s.x, s.y, true)) { tx = s.x; ty = s.y; }
+    }
+    if (tx === null) {
+      if (g.type === 'kick' && hyp(g.slot.x - K.x, g.slot.y - K.y) < 0.6) { K.st = 'kick'; K.tmr = 2.0; K.act = g.ref; K.face = Math.atan2(g.ref.y - K.y, g.ref.x - K.x); return; }
+      if (g.type === 'hook' && hyp(g.slot.x - K.x, g.slot.y - K.y) < 0.7) { K.st = 'hooking'; K.tmr = 1.5; K.act = g.ref; return; }
+      if (g.type === 'hatch' && hyp(g.ref.x - K.x, g.ref.y - K.y) < 1.8) { K.st = 'hatch'; K.tmr = 1.0; return; }
+      const w = steerPath(K, true);
+      if (w && w.vault) {
+        const v = w.vault, mid = (tidx(K.x, K.y) + v.n) >> 1;
+        if (v.via === 2) { const p = palAt.get(mid); if (p && p.state === 'down') { K.st = 'break'; K.tmr = K.type.brk; K.act = p; K.face = Math.atan2(p.y - K.y, p.x - K.x); return; } K.think = 0; }
+        else { K.st = 'vault'; K.tmr = 1.7; K.vault = { x0: K.x, y0: K.y, x1: v.x, y1: v.y, dur: 1.7 }; K.face = Math.atan2(v.y - K.y, v.x - K.x); K.pi++; return; }
+      } else if (w) { tx = w.x; ty = w.y; }
+      else if (g.slot) { tx = g.slot.x; ty = g.slot.y; }
+      else if (g.type === 'hatch') { tx = g.ref.x; ty = g.ref.y; }
+    }
+  }
+  if (tx !== null) {
+    const d = hyp(tx - K.x, ty - K.y);
+    if (d > 0.05) { const sp = (K.carry ? SPD.carry : K.cloak ? 5.4 : K.surge > 0 ? 6.0 : K.type.speed) * (1 + 0.05 * (K.wounds || 0)) + (K.chase ? Math.min(0.4, K.bl * 0.2) : 0); moveEnt(K, (tx - K.x) / d * sp * dt, (ty - K.y) / d * sp * dt, true); K.face += clamp(angDiff(Math.atan2(ty - K.y, tx - K.x), K.face), -9 * dt, 9 * dt); }
+  } else K.face += 1.7 * dt * K.scan;
+  if (K.chase) { K.bl = Math.min(2, K.bl + dt / 15 * K.type.bl); if (K.chase.isPlayer) G.stats.chase += dt; } else K.bl = 0;   // bloodlust: a long chase slowly speeds the hunter up
+  K.vx = (K.x - ox) / dt; K.vy = (K.y - oy) / dt;
+  if (K.surge > 0) K.surge -= dt; if (K.chargeCd > 0) K.chargeCd -= dt;
+  if (K.type.id === 1 && !K.cloak && !K.carry) { K.unseenT = K.sees.some(v => v) ? 0 : K.unseenT + dt; if (K.unseenT > 3 && !(g && g.type === 'pickup')) { K.st = 'cloaking'; K.tmr = 1.0; K.unseenT = 0; ev('cloak', { x: K.x, y: K.y }); } }
+  K.stuckT += dt; if (K.stuckT > 1.5) { if (tx !== null && hyp(K.x - K.lx, K.y - K.ly) < 0.4) { const a = rnd(TAU); moveEnt(K, Math.cos(a) * 0.4, Math.sin(a) * 0.4, true); K.think = 0; K.scan = -K.scan; } K.stuckT = 0; K.lx = K.x; K.ly = K.y; }
+}
+
+/* =====================================================================
+   BELIEF UPDATES — what each side is allowed to know
+   ===================================================================== */
+const phaseNow = () => Math.min(5, G.gensDone);
+const killerCtx = K => { K = K || G.K; return K.carry ? 2 : K.chase ? 1 : 0; };
+const stayBad = (x, y) => { for (const g of gens) if ((g.done || G.powered) && hyp(g.x - x, g.y - y) < 3.4) return true; return false; };
+function hbNoise(x, y, r, mult, s) { if (s.state !== 'free') return; const tr = G.HB.tr[s.id]; if (!tr.pinned) tr.around(x, y, r, mult, 1); }
+function hbAssoc(x, y, r) { if (!G.hiq.assoc) return; let bs = null, bm = -1; const c = G.surv.filter(s => s.state === 'free' && s.health < 2 && !G.sees[s.id] && !G.HB.tr[s.id].pinned); for (const s of c) { const m = G.HB.tr[s.id].massNear(x, y, r + 3); if (m > bm) { bm = m; bs = s; } } for (const s of c) hbNoise(x, y, r, s === bs ? 30 : 2.5, s); }
+function sbKnown(K) { K = K || G.K; G.SB.trs[K.idx].pin(K.x, K.y, K.vx, K.vy); }
+function hbObs() {
+  const K = G.K, HB = G.HB, vis = HB.vis, st = ++HB.stamp, ph = phaseNow();
+  const hc = G.hiq.cone; for (const K of G.Ks) { if (K.dead) continue; for (let a = -hc; a <= hc + 0.001; a += 0.02) ray(K.x, K.y, Math.cos(K.face + a), Math.sin(K.face + a), G.hiq.range, vis, st); for (let a = 0; a < TAU; a += 0.35) ray(K.x, K.y, Math.cos(a), Math.sin(a), 3.2, vis, st); }
+  // generators the hunter can see: remember their progress; unexplained progress means someone was just here
+  for (const g of gens) {
+    if (g.done) continue; let seen = false; for (const sl of g.slots) if (vis[sl.n] === st) seen = true; if (!seen) continue;
+    if (kNear(g.x, g.y) < 12) g.visitT = G.t;
+    if (g.p > g.seenP + 1.5 && g.users === 0) hbAssoc(g.x, g.y, 11);
+    g.seenP = g.p; g.seenReg = g.regress;
+  }
+  for (const g of gates) if (kNear(g.sx, g.sy) < 10 && vis[g.sn] === st) g.visitT = G.t;
+  if (radio && kNear(radio.x, radio.y) < 10 && vis[radio.n] === st) radio.visitT = G.t;
+  if (G.hatch && vis[tidx(G.hatch.x, G.hatch.y)] === st && kNear(G.hatch.x, G.hatch.y) < 26) for (const k of G.Ks) k.knowsHatch = true;
+  const okFn = (x, y) => vis[tidx(x, y)] === st ? 0.02 : 1;
+  for (const s of G.surv) {
+    if (s.state === 'dead' || s.state === 'escaped') continue; const tr = HB.tr[s.id];
+    if (s.state !== 'free' || K.sees[s.id]) { tr.pin(s.x, s.y, s.vx, s.vy); tr.est.seen = K.sees[s.id]; tr.markT = G.t; continue; }
+    if (s.health === 2 && tr.pinned) continue;                                                         // downed: stays where it fell
+    const ctx = hunterCtx(s);
+    if (tr.pinned) { const p = tr.pinned; tr.known(p.x, p.y, p.vx, p.vy, ctx, ph); tr.pinned = null; }
+    tr.visEv(vis, st, K.x, K.y);
+    if (s.decoy) { if (G.t - s.decoy.t > 10 || vis[tidx(s.decoy.x, s.decoy.y)] === st) s.decoy = null; else tr.around(s.decoy.x, s.decoy.y, 4.5, 1, 0.03); }   // the Trickster's false trail
+    if (s.health === 1 && kNear(s.x, s.y) < G.hiq.hearInj * (s.cls.loud || 1)) tr.around(s.x, s.y, 3.5, 1, 0.02);
+    if (G.hiq.hearRun && kNear(s.x, s.y) < G.hiq.hearRun && (hyp(s.vx, s.vy) > 3.4 || (s.action && s.action.type === 'repair'))) tr.around(s.x, s.y, 4, 1, 0.04);   // the cunning hunter listens
+             // injured survivors can be heard up close
+    for (let i = G.marks.length - 1; i >= 0; i--) {                                                    // freshest visible scratch mark / blood
+      const m = G.marks[i]; if (m.t <= tr.markT) break; if (m.o !== s.id || G.t - m.t > m.life || vis[tidx(m.x, m.y)] !== st) continue;
+      tr.around(m.x, m.y, (G.t - m.t) * 4.3 + 3.5, 1, 0.06); tr.markT = m.t; break;
+    }
+    tr.finish(ctx, ph, okFn);
+  }
+  for (const p of G.surv) if (p.human) p.eye = p.state === 'free' ? (G.sees[p.id] ? 1 : HB.tr[p.id].massNear(p.x, p.y, 8)) : 0;
+}
+function hbPredict() {
+  const HB = G.HB, ph = phaseNow();
+  for (const s of G.surv) { const tr = HB.tr[s.id]; if (s.state !== 'free' || tr.pinned) continue; const ctx = hunterCtx(s); tr.predict(ctx, ph, stayBad); if (Math.random() < 0.5) tr.inject(1, ctx, ph, null); tr.estimate(); }
+}
+function sbObs() {
+  const SB = G.SB, ph = phaseNow(), vis = SB.vis, st = ++SB.stamp; let anyUnseen = false;
+  G.Ks.forEach((K, k) => {
+    if (K.dead) { SB.seenK[k] = true; return; }
+    let seen = !!K.carry; for (const s of G.surv) if (!seen && inPlay(s) && hyp(K.x - s.x, K.y - s.y) < (K.cloak ? 14 : 36) && los(s.x, s.y, K.x, K.y)) seen = true;
+    SB.seenK[k] = seen; const tr = SB.trs[k];
+    if (seen) { sbKnown(K); tr.est.seen = true; } else { anyUnseen = true; if (tr.pinned) { const p = tr.pinned; tr.known(p.x, p.y, p.vx, p.vy, killerCtx(K), ph); tr.pinned = null; } }
+  });
+  if (!anyUnseen) return;
+  for (const s of G.surv) { if (!inPlay(s)) continue; for (let a = 0; a < TAU; a += 0.05) ray(s.x, s.y, Math.cos(a), Math.sin(a), 30, vis, st); }
+  G.Ks.forEach((K, k) => { if (!SB.seenK[k]) SB.trs[k].visEv(vis, st); });
+  for (const s of G.surv) {                                                                           // the heartbeat is a range reading: three loudness bands, from whichever hunter is loudest
+    if (!inPlay(s)) continue; let band = 0, R = TERROR, explained = false;
+    for (const K of G.Ks) { if (K.cloak) continue; const d = hyp(K.x - s.x, K.y - s.y), q = d < K.tr / 3 ? 3 : d < K.tr * 2 / 3 ? 2 : d < K.tr ? 1 : 0; if (q > band) { band = q; R = K.tr; explained = SB.seenK[K.idx]; } }
+    if (band === 0) { G.Ks.forEach((K, k) => { if (!SB.seenK[k] && K.type.id !== 1) SB.trs[k].band(s.x, s.y, K.tr, 1e9); }); continue; }   // silence rules every hunter out nearby (except a Shade)
+    if (explained) continue;
+    const lo = band === 1 ? R * 2 / 3 : band === 2 ? R / 3 : 0, hi = band === 1 ? R : band === 2 ? R * 2 / 3 : R / 3;
+    let bk = -1, bm = -1; G.Ks.forEach((K, k) => { if (SB.seenK[k]) return; const m = SB.trs[k].massNear(s.x, s.y, hi + 2); if (m > bm) { bm = m; bk = k; } });
+    G.Ks.forEach((K, k) => { if (SB.seenK[k]) return; const loK = band === 1 ? K.tr * 2 / 3 : band === 2 ? K.tr / 3 : 0; if (k === bk) SB.trs[k].band(s.x, s.y, lo, hi); else if (loK > 0 && K.type.id !== 1) SB.trs[k].band(s.x, s.y, loK, 1e9); });   // blame the likeliest hunter
+  }
+  G.Ks.forEach((K, k) => { if (!SB.seenK[k]) SB.trs[k].finish(killerCtx(K), ph, (x, y) => vis[tidx(x, y)] === st ? 0.02 : 1); });
+}
+function sbPredict() { G.Ks.forEach((K, k) => { const tr = G.SB.trs[k]; if (tr.pinned) return; const c = killerCtx(K); tr.predict(c, phaseNow(), null); if (Math.random() < 0.5) tr.inject(1, c, phaseNow(), null); tr.estimate(); }); }
+
+/* the referee: once a second, write down what really happened (memory for the NEXT trial) and score both brains */
+function referee() {
+  const K = G.K, A = G.acc, ph = phaseNow(), q = v => clamp(Math.round(v * 2), 0, 255);
+  for (const s of G.surv) {
+    if (s.state !== 'free' || s.health === 2) { s.pc = -1; continue; }
+    const R = G.rec[s.id]; R.x.push(q(s.x)); R.y.push(q(s.y)); R.m.push(hunterCtx(s) | (ph << 2) | ((s.cls.id & 3) << 5) | (s.pc < 0 ? 128 : 0)); s.pc = 1;
+    if (G.t - K.seenT[s.id] > 3) { const e = G.HB.tr[s.id].est, err = hyp(e.x - s.x, e.y - s.y); A.hS += err; A.hN++; if (G.t - K.seenT[s.id] < 25) { A.shS += err; A.shN++; } if (err < 8) A.hHit++; if (s.isPlayer) { A.yS += err; A.yN++; if (err < 8) A.yHit++; } }
+  }
+  G.Ks.forEach((K, k) => { if (K.dead) return; const R = G.rec[G.surv.length + k]; R.x.push(q(K.x)); R.y.push(q(K.y)); R.m.push(killerCtx(K) | (ph << 2) | (K.type.id << 5) | (K.pc < 0 ? 128 : 0)); K.pc = 1; if (!G.SB.seenK[k]) { const e = G.SB.trs[k].est; A.sS += hyp(e.x - K.x, e.y - K.y); A.sN++; } });
+  const p = G.surv[0]; if (p.state === 'free' && G.replay.length < 1500) { const e = G.HB.tr[0].est; G.replay.push([p.x, p.y, e.x, e.y, K.sees[0] ? 1 : 0]); }
+}
+function finishMatch() {
+  const A = G.acc, H = BRAIN.hist, r1 = v => Math.round(v * 10) / 10;
+  const res = { sh: A.shN ? r1(A.shS / A.shN) : null, h: A.hN ? r1(A.hS / A.hN) : null, hHit: A.hN ? Math.round(100 * A.hHit / A.hN) : null, you: A.yN ? r1(A.yS / A.yN) : null, youHit: A.yN ? Math.round(100 * A.yHit / A.yN) : null, s: A.sN ? r1(A.sS / A.sN) : null, esc: G.surv.filter(s => s.state === 'escaped').length, time: G.t };
+  G.result = res;
+  if (G.autoplay) BRAIN.dreams++; else BRAIN.trials++;
+  H.h.push(res.h); H.you.push(G.autoplay ? null : res.you); H.s.push(res.s); H.esc.push(res.esc); H.dream.push(G.autoplay ? 1 : 0);
+  for (const k in H) if (H[k].length > 60) H[k].shift();
+  for (let i = 0; i < G.rec.length; i++) { const R = G.rec[i]; if (R.m.length) R.m[0] |= 128; libAppend(BRAIN.lib[i >= G.surv.length ? 2 : subjOf(G.surv[i])], R); }                                       // remember this trial; the oldest memories fall out
+  return res;
+}
+
+/* =====================================================================
+   ONE STEP OF THE WORLD
+   ===================================================================== */
+function step(dt) {
+  if (G.over) { G.overT += dt; return; }
+  G.t += dt; const K = G.K;
+  for (const g of gens) { g.users = g.usersNow; g.usersNow = 0; if (g.regress && !g.done) { g.p = Math.max(0, g.p - 0.25 * dt); if (g.p <= 0) g.regress = false; } }
+  G.anyUp = G.surv.some(s => (s.state === 'free' && s.health < 2) || s.state === 'carried');
+  killerPerceive();
+  for (const s of G.surv) {
+    if (isBot(s)) { s.think -= dt; if (s.think <= 0) { s.think = G.siq.think; botThink(s); } botAct(s, dt); } else playerControl(s);
+    updateSurv(s, dt);
+  }
+  updateSC(dt);
+  for (const k of G.Ks) { if (k.dead) continue; G.K = k; k.think -= dt; if (k.think <= 0) { k.think = G.hiq.think; killerThink(); } killerAct(dt); } G.K = G.Ks[0];
+  while (G.marks.length && G.t - G.marks[0].t > MARK_LIFE * 1.5) G.marks.shift();
+  const alive = G.surv.filter(s => s.state !== 'dead' && s.state !== 'escaped');
+  if (!G.hatch && !G.hatchUsed && alive.length === 1 && G.surv.filter(s => s.state === 'dead' || s.state === 'escaped').length === G.surv.length - 1) { const far = floorList.filter(n => hyp((n % MW + .5) * T - K.x, (((n / MW) | 0) + .5) * T - K.y) > 24); const n = far[(Math.random() * far.length) | 0]; G.hatch = { x: (n % MW + .5) * T, y: (((n / MW) | 0) + .5) * T }; G.hatchUsed = true; ev('hatch'); }
+  if (G.t > 1200 && G.egc < 0) { G.egc = 60; if (!G.powered) { G.powered = true; G.poweredT = G.t; } ev('powered'); }
+  if (G.t > 1200 && radio && !radio.done) { radio.done = true; G.evacT = 1; }
+  if (G.evacT > 0) { G.evacT -= dt; if (G.evacT <= 0) { G.evacT = 0; for (const g of gates) if (!g.open) openGate(g); } }
+  if (G.egc > 0) { G.egc -= dt * (G.surv.some(s => s.state === 'hooked' || (s.state === 'free' && s.health === 2) || s.state === 'carried') ? 0.5 : 1); if (G.egc <= 0) { G.egc = 0; for (const s of alive) kill(s, 'taken by the collapse'); } }
+  G.tick02 -= dt; if (G.tick02 <= 0) { G.tick02 += 0.2; hbObs(); sbObs(); }
+  G.tick1 -= dt; if (G.tick1 <= 0) { G.tick1 += 1; hbPredict(); sbPredict(); referee(); }
+  if (G.surv.every(s => s.state === 'dead' || s.state === 'escaped')) { G.over = true; finishMatch(); }
+}
+function runToEnd(maxSteps) { let n = 0; while (!G.over && n++ < (maxSteps || 60000)) { step(1 / 30); G.events.length = 0; } return G.result; }
+
+if (HEADLESS) module.exports = { abilityInfo, CLASSES, HUNTERS, newMatch, step, runToEnd, newBrain, encLibs, decLibs, MAPS, HIQ, SIQ, Tracker, get G() { return G; }, get BRAIN() { return BRAIN; }, set BRAIN(b) { BRAIN = b; }, get tiles() { return tiles; }, get gens() { return gens; }, get hooks() { return hooks; }, get pallets() { return pallets; }, get windows() { return windows; }, MW, MH, connected, buildMap, INPUT };
+
+/* =====================================================================
+   DEAD RECKONING — screen, touch, sound
+   ===================================================================== */
+if (!HEADLESS) (function () {
+  const $ = id => document.getElementById(id);
+  const cv = $('c'), cx = cv.getContext('2d');
+  let W = 0, H = 0, DPR = 1, S = 24;
+  const cam = { x: WW / 2, y: WH / 2 };
+  const OPT = { prem: true, sound: true, cls: 0, hunter: -1, map: 0, hiq: 1, siq: 1, hunters: 1, survivors: 4 };
+  let mode = 'menu', paused = false, accT = 0, lastTs = 0, toasts = [], shake = 0, hbT = 0, hbPulse = 0, ctxBtn = null, endShown = false, focus = null;
+  const FH = '"Avenir Next Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif';
+  const COL = { bone: '#d9d2c2', blood: '#b3221c', amber: '#e2a93b', mute: '#8b908c', dark: 'rgba(5,7,10,' };
+  const GROUND = ['#232c25', '#263027', '#202822', '#283126'];
+  const hash = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
+  const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16); return 'rgb(' + (((n >> 16) & 255) * f | 0) + ',' + (((n >> 8) & 255) * f | 0) + ',' + ((n & 255) * f | 0) + ')'; };
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resize() { DPR = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight; cv.width = (W * DPR) | 0; cv.height = (H * DPR) | 0; cv.style.width = W + 'px'; cv.style.height = H + 'px'; S = Math.max(W, H) / 40; }
+  const BTN = () => ({ act: { x: W - 96, y: H - 112, r: 58 }, cr: { x: W - 206, y: H - 62, r: 34 }, ab: { x: W - 206, y: H - 152, r: 34 }, pause: { x: W - 36, y: 36, r: 24 }, skip: { x: W / 2 - 80, y: 92, w: 160, h: 40 } });
+
+  /* ---------------- sound: everything is synthesised, nothing to download ---------------- */
+  const AU = {
+    c: null, g: null,
+    init() { try { if (!this.c) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; this.c = new AC(); this.g = this.c.createGain(); this.g.gain.value = 0.55; this.g.connect(this.c.destination); } if (this.c.state === 'suspended') this.c.resume(); } catch (e) { } },
+    tone(f, d, type, v, f2, delay) { if (!this.c || !OPT.sound) return; try { const t = this.c.currentTime + (delay || 0), o = this.c.createOscillator(), g = this.c.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(this.g); o.start(t); o.stop(t + d + 0.05); } catch (e) { } },
+    noise(d, v, fq, delay) { if (!this.c || !OPT.sound) return; try { const t = this.c.currentTime + (delay || 0), n = (this.c.sampleRate * d) | 0, b = this.c.createBuffer(1, n, this.c.sampleRate), a = b.getChannelData(0); for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / n); const s = this.c.createBufferSource(), f = this.c.createBiquadFilter(), g = this.c.createGain(); s.buffer = b; f.type = 'lowpass'; f.frequency.value = fq || 900; g.gain.value = v; s.connect(f); f.connect(g); g.connect(this.g); s.start(t); } catch (e) { } }
+  };
+  const nm = s => s.id === (G.me | 0) ? 'You' : s.name;
+  function sfx(e) {
+    if (e.type.slice(0, 2) === 'sc' && e.s && e.s.id !== (G.me | 0)) return;
+    const p = G.surv[G.me | 0], d = e.x !== undefined ? hyp(e.x - p.x, e.y - p.y) : 0, v = clamp(1 - d / 70, 0.12, 1);
+    switch (e.type) {
+      case 'scwarn': AU.tone(1040, 0.16, 'sine', 0.25); break;
+      case 'scgreat': AU.tone(1320, 0.1, 'triangle', 0.22); AU.tone(1980, 0.16, 'triangle', 0.2, 0, 0.08); break;
+      case 'scgood': AU.tone(990, 0.1, 'triangle', 0.18); break;
+      case 'scfail': AU.tone(140, 0.3, 'sawtooth', 0.25, 60); break;
+      case 'boom': AU.noise(0.5, 0.5 * v, 500); AU.tone(90, 0.4, 'sawtooth', 0.3 * v, 40); break;
+      case 'gen': AU.tone(196, 0.5, 'sawtooth', 0.14); AU.tone(294, 0.5, 'sawtooth', 0.12, 0, 0.12); AU.tone(392, 0.9, 'sawtooth', 0.12, 0, 0.24); AU.noise(0.9, 0.12, 300); break;
+      case 'hit': case 'endure': AU.noise(0.18, 0.5 * v, 1800); AU.tone(720, 0.45, 'sawtooth', 0.2 * v, 260, 0.05); break;
+      case 'down': AU.noise(0.25, 0.5 * v, 1200); AU.tone(620, 0.8, 'sawtooth', 0.22 * v, 140, 0.05); break;
+      case 'hook': AU.tone(70, 0.5, 'square', 0.3); AU.tone(820, 1.0, 'sawtooth', 0.18, 300, 0.15); break;
+      case 'unhook': AU.tone(330, 0.15, 'triangle', 0.2); AU.tone(495, 0.25, 'triangle', 0.2, 0, 0.12); break;
+      case 'pallet': AU.noise(0.22, 0.6 * v, 700); AU.tone(110, 0.2, 'square', 0.25 * v); break;
+      case 'stun': AU.tone(240, 0.3, 'square', 0.15 * v, 120); break;
+      case 'break': AU.noise(0.35, 0.5 * v, 1400); break;
+      case 'kick': AU.noise(0.2, 0.35 * v, 600); break;
+      case 'vault': AU.noise(0.12, 0.12 * v, 2400); break;
+      case 'lunge': AU.noise(0.2, 0.25 * v, 3000); break;
+      case 'powered': AU.tone(110, 1.6, 'sawtooth', 0.25); AU.tone(165, 1.6, 'sawtooth', 0.16, 0, 0.1); break;
+      case 'gate': AU.tone(98, 1.2, 'square', 0.2); AU.tone(196, 1.2, 'square', 0.1, 0, 0.3); break;
+      case 'escape': AU.tone(392, 0.3, 'triangle', 0.2); AU.tone(523, 0.3, 'triangle', 0.2, 0, 0.15); AU.tone(659, 0.6, 'triangle', 0.2, 0, 0.3); break;
+      case 'death': AU.tone(65, 1.8, 'sawtooth', 0.3, 40); AU.noise(1.2, 0.2, 400); break;
+      case 'healed': AU.tone(523, 0.2, 'sine', 0.15); break;
+      case 'hatch': AU.tone(220, 1.2, 'sine', 0.15, 110); break;
+      case 'bell': AU.tone(1568, 1.4, 'sine', 0.3 * v); AU.tone(2093, 1.1, 'sine', 0.16 * v, 0, 0.02); break;
+      case 'cloak': AU.noise(0.7, 0.12 * v, 2600); break;
+      case 'roar': AU.tone(96, 0.7, 'sawtooth', 0.4 * v, 58); AU.noise(0.6, 0.3 * v, 500); break;
+      case 'crash': AU.noise(0.4, 0.6 * v, 420); AU.tone(70, 0.3, 'square', 0.3 * v); break;
+      case 'sprint': AU.noise(0.25, 0.15, 3200); break;
+      case 'boltmiss': AU.noise(0.1, 0.4 * v, 5000); break;
+      case 'shot': AU.noise(0.12, 0.6 * v, 5000); AU.tone(300, 0.25, 'square', 0.2 * v, 90, 0.02); break;
+      case 'hunterdead': AU.tone(110, 2.2, 'sawtooth', 0.3, 30); AU.noise(1.5, 0.25, 300); break;
+      case 'ritual': AU.tone(196, 1.6, 'sine', 0.2 * v, 185); AU.tone(277, 1.6, 'sine', 0.14 * v, 262, 0.1); break;
+      case 'revived': AU.tone(220, 0.5, 'triangle', 0.2); AU.tone(330, 0.5, 'triangle', 0.2, 0, 0.2); AU.tone(440, 0.9, 'triangle', 0.2, 0, 0.4); break;
+      case 'decoy': AU.noise(0.3, 0.1, 1800); break;
+      case 'empty': AU.tone(180, 0.25, 'triangle', 0.18 * v, 120); break;
+      case 'radio': AU.tone(880, 0.09, 'square', 0.12); AU.tone(880, 0.09, 'square', 0.12, 0, 0.18); AU.tone(1175, 0.3, 'square', 0.12, 0, 0.36); break;
+    }
+  }
+  const TOAST = {
+    gen: () => (GENS_NEEDED - G.gensDone > 0 ? MAP.obj.doneMsg + ' ' + (GENS_NEEDED - G.gensDone) + ' to go' : null),
+    powered: () => MAP.obj.poweredMsg, empty: () => 'That crate was empty', radio: () => 'The lift is coming. Hold out for ' + MAP.obj.waitT + ' seconds', gate: () => 'The way out is open. The collapse has begun',
+    hook: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' on a hook', unhook: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' off the hook',
+    down: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' down', death: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' were ' : ' was ') + e.s.fate, escape: e => nm(e.s) + ' escaped',
+    boltmiss: e => e.K.type.name + ' dodged the bolt', shot: e => e.K.type.name + ' is hit: ' + e.K.wounds + ' of 4 wounds', hunterdead: e => e.K.type.name + ' is dead', ritual: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' begin' : ' begins') + ' a ritual. The hunters felt it', revived: e => nm(e.s) + ((e.s.id === (G.me | 0)) ? ' are' : ' is') + ' back from the dead, on a last life',
+    hatch: () => 'Somewhere, the hatch has opened', hatchclose: () => 'The hatch was shut', tryfail: () => 'You slipped. ' + G.surv[G.me | 0].tries + ' tries left', wiggle: e => nm(e.s) + ' broke free'
+  };
+  function handleEvents(silent) {
+    for (const e of G.events) {
+      MP.ev(e); if (!silent) sfx(e);
+      const f = TOAST[e.type]; if (f) { const t = f(e); if (t) { toasts.push({ t, born: performance.now() / 1000 }); if (toasts.length > 4) toasts.shift(); } }
+      if (!silent && !reduced && (e.type === 'hit' || e.type === 'down' || e.type === 'endure') && (e.s.id === (G.me | 0))) shake = 0.35;
+    }
+    G.events.length = 0;
+  }
+
+  /* ---------------- input ---------------- */
+  let joy = null; const keys = {};
+  const inCirc = (b, x, y) => hyp(x - b.x, y - b.y) <= b.r + 8;
+  function press(x, y) {
+    if (mode !== 'play' || !G) return true;
+    const b = BTN();
+    if (inCirc(b.pause, x, y)) { setPause(!paused); return true; }
+    if (paused) return true;
+    const p = G.surv[G.me | 0];
+    if (!inPlay(p) && !G.over && x > b.skip.x && x < b.skip.x + b.skip.w && y > b.skip.y - 6 && y < b.skip.y + b.skip.h + 6) { if (G.net !== 'client' && !G.surv.some(s => s.human && inPlay(s))) G.ff = true; return true; }
+    if (inCirc(b.act, x, y)) { INPUT.act = true; return true; }
+    if (inCirc(b.cr, x, y)) { INPUT.crouch = !INPUT.crouch; return true; }
+    if (abilityInfo(p) && inCirc(b.ab, x, y)) { INPUT.ab = true; return true; }
+    return false;
+  }
+  cv.addEventListener('touchstart', e => {
+    e.preventDefault(); AU.init();
+    for (const t of e.changedTouches) {
+      const x = t.clientX, y = t.clientY; if (press(x, y)) continue;
+      if (x < W * 0.5) { if (!joy) joy = { id: t.identifier, ox: x, oy: y, x, y }; }
+      else if (G && ((G.surv[G.me | 0].sc && G.surv[G.me | 0].sc.phase > 0) || G.surv[G.me | 0].state !== 'free')) INPUT.act = true;      // anywhere on the right works for skill checks and wiggling
+    }
+  }, { passive: false });
+  cv.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (joy && t.identifier === joy.id) { joy.x = t.clientX; joy.y = t.clientY; const dx = (joy.x - joy.ox) / 58, dy = (joy.y - joy.oy) / 58, m = hyp(dx, dy); INPUT.jx = m > 1 ? dx / m : dx; INPUT.jy = m > 1 ? dy / m : dy; } }, { passive: false });
+  const endTouch = e => { e.preventDefault(); for (const t of e.changedTouches) if (joy && t.identifier === joy.id) { joy = null; INPUT.jx = INPUT.jy = 0; } };
+  cv.addEventListener('touchend', endTouch, { passive: false }); cv.addEventListener('touchcancel', endTouch, { passive: false });
+  cv.addEventListener('mousedown', e => { AU.init(); press(e.clientX, e.clientY); });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  function keyMove() { const x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0), m = hyp(x, y) || 1, k = keys.shift ? 0.5 : 1; INPUT.jx = x / m * k; INPUT.jy = y / m * k; }
+  window.addEventListener('keydown', e => { if (e.target && e.target.tagName === 'INPUT') return; const k = e.key.toLowerCase(); if (keys[k]) return; keys[k] = true; if (k === ' ' || k === 'e') { INPUT.act = true; e.preventDefault(); } else if (k === 'c') INPUT.crouch = !INPUT.crouch; else if (k === 'q') INPUT.ab = true; else if (k === 'escape' || k === 'p') { if (mode === 'play') setPause(!paused); } keyMove(); });
+  window.addEventListener('keyup', e => { if (e.target && e.target.tagName === 'INPUT') return; keys[e.key.toLowerCase()] = false; keyMove(); });
+  window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+  document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'play' && G && !G.over) setPause(true); });
+
+  /* ---------------- world drawing ---------------- */
+  const VR = 34, NR = 220, vpx = new Float32Array(NR), vpy = new Float32Array(NR);
+  function computeVis(f) { for (let i = 0; i < NR; i++) { const a = i / NR * TAU, dx = Math.cos(a), dy = Math.sin(a), d = Math.min(VR, ray(f.x, f.y, dx, dy, VR) + 1.85); vpx[i] = f.x + dx * d; vpy[i] = f.y + dy * d; } }
+  const sx = x => (x - cam.x) * S + W / 2, sy = y => (y - cam.y) * S + H / 2;
+  function txt(s, x, y, size, col, align, weight) { cx.font = (weight || 500) + ' ' + size + 'px ' + FH; cx.fillStyle = col; cx.textAlign = align || 'left'; cx.fillText(s, x, y); }
+  function drawTile(tx, ty, now) {
+    const i = ty * MW + tx, t = tiles[i], x = tx * T, y = ty * T, h = hash(tx, ty);
+    cx.fillStyle = MAP.ground[(h * 4) | 0]; cx.fillRect(x, y, T + 0.04, T + 0.04);
+    if (h > 0.84) { cx.fillStyle = 'rgba(66,52,36,0.35)'; cx.beginPath(); cx.ellipse(x + 1, y + 1, 0.8, 0.5, h * 6, 0, TAU); cx.fill(); }
+    else if (h < 0.22) { cx.strokeStyle = 'rgba(70,96,64,0.5)'; cx.lineWidth = 0.05; cx.beginPath(); cx.moveTo(x + 0.5 + h, y + 1.4); cx.lineTo(x + 0.45 + h, y + 1.05); cx.moveTo(x + 1.2 - h, y + 0.7); cx.lineTo(x + 1.28 - h, y + 0.4); cx.stroke(); }
+    if (t === FLOOR) return;
+    if (t === WALL) { cx.fillStyle = MAP.wall; cx.fillRect(x, y, T + 0.04, T + 0.04); cx.fillStyle = MAP.lip; cx.fillRect(x, y + T * 0.74, T + 0.04, T * 0.26 + 0.04); cx.fillStyle = 'rgba(255,255,255,0.045)'; cx.fillRect(x, y, T, 0.12); if (h > 0.5) { cx.fillStyle = 'rgba(0,0,0,0.16)'; cx.fillRect(x + h * 1.2, y + 0.3, 0.06, 0.9); } }
+    else if (t === ROCK) { cx.fillStyle = '#4a4d4c'; cx.beginPath(); cx.moveTo(x + 0.2, y + 1.5); cx.lineTo(x + 0.35, y + 0.45); cx.lineTo(x + 1.1, y + 0.15); cx.lineTo(x + 1.8, y + 0.6); cx.lineTo(x + 1.75, y + 1.6); cx.lineTo(x + 0.9, y + 1.9); cx.closePath(); cx.fill(); cx.fillStyle = 'rgba(255,255,255,0.06)'; cx.beginPath(); cx.moveTo(x + 0.35, y + 0.45); cx.lineTo(x + 1.1, y + 0.15); cx.lineTo(x + 1.0, y + 0.9); cx.closePath(); cx.fill(); }
+    else if (t === TREE) { cx.fillStyle = '#2a211a'; cx.beginPath(); cx.arc(x + 1, y + 1, 0.55, 0, TAU); cx.fill(); }
+    else if (t === WINDOW || t === PAL_UP || t === PAL_DN) {
+      const v = vaxis[i] === 0;   // true: the wall runs vertically, you cross left-right
+      cx.fillStyle = MAP.wall; if (v) { cx.fillRect(x + 0.55, y, 0.9, 0.3); cx.fillRect(x + 0.55, y + 1.7, 0.9, 0.34); } else { cx.fillRect(x, y + 0.55, 0.3, 0.9); cx.fillRect(x + 1.7, y + 0.55, 0.34, 0.9); }
+      if (t === WINDOW) { cx.fillStyle = '#77705f'; if (v) cx.fillRect(x + 0.82, y + 0.3, 0.36, 1.4); else cx.fillRect(x + 0.3, y + 0.82, 1.4, 0.36); cx.fillStyle = 'rgba(210,225,230,0.16)'; if (v) cx.fillRect(x + 0.94, y + 0.3, 0.12, 1.4); else cx.fillRect(x + 0.3, y + 0.94, 1.4, 0.12); }
+      else if (t === PAL_UP) { cx.fillStyle = '#a17a42'; if (v) cx.fillRect(x + 0.84, y + 0.28, 0.32, 0.62); else cx.fillRect(x + 0.28, y + 0.84, 0.62, 0.32); cx.fillStyle = '#6f5229'; if (v) cx.fillRect(x + 0.84, y + 0.56, 0.32, 0.06); else cx.fillRect(x + 0.56, y + 0.84, 0.06, 0.32); }
+      else { cx.fillStyle = '#a17a42'; if (v) cx.fillRect(x + 0.45, y + 0.3, 1.1, 1.4); else cx.fillRect(x + 0.3, y + 0.45, 1.4, 1.1); cx.fillStyle = '#6f5229'; for (let k = 1; k < 4; k++) { if (v) cx.fillRect(x + 0.45, y + 0.3 + k * 0.35, 1.1, 0.06); else cx.fillRect(x + 0.3 + k * 0.35, y + 0.45, 0.06, 1.1); } }
+    }
+    else if (t === HOOK) { const hk = hooks.find(q => q.n === i); cx.fillStyle = hk && hk.broken ? '#3a3a3a' : '#5a2f25'; cx.beginPath(); cx.arc(x + 1, y + 1, 0.42, 0, TAU); cx.fill(); if (!hk || !hk.broken) { cx.strokeStyle = '#a65a44'; cx.lineWidth = 0.14; cx.beginPath(); cx.moveTo(x + 1, y + 1); cx.lineTo(x + 1, y + 0.25); cx.arc(x + 1.25, y + 0.3, 0.25, Math.PI, Math.PI * 0.1, false); cx.stroke(); } }
+    else if (t === GATE || t === GATE_OPEN) { if (t === GATE) { cx.fillStyle = '#31282a'; cx.fillRect(x, y, T + 0.04, T + 0.04); cx.fillStyle = '#4a3a34'; cx.fillRect(x + 0.2, y + 0.12, T - 0.4, T - 0.24); } else { cx.fillStyle = 'rgba(214,226,222,' + (0.5 + 0.12 * Math.sin(now * 3)) + ')'; cx.fillRect(x, y, T + 0.04, T + 0.04); } }
+  }
+  function drawGen(g, now) {
+    const x = g.tx * T, y = g.ty * T;
+    if (MAP.obj.look === 'crate') {                                      // a crate to search: shut, being rifled, or open
+      cx.fillStyle = '#3d2c1a'; cx.fillRect(x + 0.2, y + 0.3, T - 0.4, T - 0.6); cx.fillStyle = g.done ? '#120d08' : '#7a5c36'; cx.fillRect(x + 0.32, y + 0.42, T - 0.64, T - 0.84);
+      if (!g.done) { cx.fillStyle = '#5a4226'; cx.fillRect(x + 0.32, y + 0.94, T - 0.64, 0.1); cx.fillRect(x + 0.94, y + 0.42, 0.1, T - 0.84); if (g.users > 0) { cx.fillStyle = 'rgba(226,169,59,' + (0.3 + 0.3 * Math.sin(now * 10)) + ')'; cx.fillRect(x + 0.32, y + 0.42, (T - 0.64) * g.p / GEN_CHARGES, 0.14); } }
+      else if (g.has) { cx.fillStyle = COL.amber; cx.beginPath(); cx.arc(x + 1, y + 1, 0.14, 0, TAU); cx.fill(); }
+      return;
+    }
+    const pump = MAP.obj.look === 'pump'; if (pump) { cx.strokeStyle = '#2f4650'; cx.lineWidth = 0.22; cx.beginPath(); cx.moveTo(x + 1, y + 1); cx.lineTo(x + 1 + (hash(g.tx, g.ty) > 0.5 ? 1.6 : -1.6), y + 1.7); cx.stroke(); }
+    cx.fillStyle = pump ? '#22333b' : '#25282a'; cx.fillRect(x + 0.12, y + 0.12, T - 0.24, T - 0.24); cx.fillStyle = pump ? '#4a6672' : '#545a5d'; cx.fillRect(x + 0.3, y + 0.5, T - 0.6, T - 0.85); cx.fillStyle = '#3a3f42'; cx.fillRect(x + 0.3, y + 0.28, T - 0.6, 0.26);
+    const f = g.p / GEN_CHARGES, work = g.users > 0;
+    for (let k = 0; k < 4; k++) { const lit = g.done || f >= (k + 1) / 4, cur = !g.done && f < (k + 1) / 4 && f >= k / 4 && work; cx.fillStyle = lit ? COL.amber : cur ? (Math.sin(now * 12) > 0 ? COL.amber : '#5a4a22') : '#1a1c1d'; cx.beginPath(); cx.arc(x + 0.5 + k * 0.335, y + 0.41, 0.1, 0, TAU); cx.fill(); }
+    if (g.regress && Math.sin(now * 30 + g.id) > 0.3) { cx.fillStyle = '#ff7a3c'; cx.beginPath(); cx.arc(x + 0.6 + hash(now * 60 | 0, g.id) * 0.8, y + 0.9 + hash(g.id, now * 60 | 0) * 0.5, 0.09, 0, TAU); cx.fill(); }
+    if (G.t - g.boomT < 0.5) { cx.fillStyle = 'rgba(255,170,70,' + (1 - (G.t - g.boomT) * 2) + ')'; cx.beginPath(); cx.arc(g.x, g.y, 1 + (G.t - g.boomT) * 4, 0, TAU); cx.fill(); }
+  }
+  function drawSurv(s, now) {
+    cx.save(); cx.translate(s.x, s.y + (s.state === 'hooked' ? -0.25 + Math.sin(now * (s.stage > 1 ? 9 : 3)) * 0.05 : 0));
+    const down = s.state === 'free' && s.health === 2;
+    cx.fillStyle = 'rgba(0,0,0,0.35)'; cx.beginPath(); cx.ellipse(0.08, 0.14, 0.52, 0.4, 0, 0, TAU); cx.fill();
+    if (down || s.health === 1) { cx.fillStyle = 'rgba(140,20,16,0.5)'; cx.beginPath(); cx.ellipse(-0.1, 0.1, down ? 0.7 : 0.3, down ? 0.5 : 0.22, 0, 0, TAU); cx.fill(); }
+    if ((s.id === (G.me | 0))) { cx.strokeStyle = 'rgba(217,210,194,0.6)'; cx.lineWidth = 0.06; cx.beginPath(); cx.arc(0, 0, 0.7, 0, TAU); cx.stroke(); }
+    if (s.endT > 0) { cx.strokeStyle = 'rgba(255,255,255,' + (0.4 + 0.3 * Math.sin(now * 10)) + ')'; cx.lineWidth = 0.08; cx.beginPath(); cx.arc(0, 0, 0.58, 0, TAU); cx.stroke(); }
+    cx.rotate(s.face); const k = s.crouch ? 0.8 : 1, bob = s.moving ? Math.sin(now * 14 + s.id) * 0.04 : 0;
+    if (down) { cx.fillStyle = shade(s.col, 0.6); cx.beginPath(); cx.ellipse(-0.18, 0, 0.6, 0.3, 0, 0, TAU); cx.fill(); cx.fillStyle = '#c9a98c'; cx.beginPath(); cx.arc(0.48, 0, 0.19, 0, TAU); cx.fill(); }
+    else {
+      if (s.action) { cx.fillStyle = '#c9a98c'; const w = Math.sin(now * 9) * 0.06; cx.beginPath(); cx.arc(0.42 + w, -0.26, 0.09, 0, TAU); cx.arc(0.42 - w, 0.26, 0.09, 0, TAU); cx.fill(); }
+      cx.fillStyle = s.health === 1 ? shade(s.col, 0.72) : s.col; cx.beginPath(); cx.ellipse(0, 0, 0.3 * k, (0.47 + bob) * k, 0, 0, TAU); cx.fill();
+      cx.fillStyle = '#d9b99b'; cx.beginPath(); cx.arc(0.08 * k, 0, 0.2 * k, 0, TAU); cx.fill();
+      cx.fillStyle = ['#2b2320', '#5b3a22', '#1a1a1c', '#7a5a2e'][s.id % 4]; cx.beginPath(); cx.arc(0.03 * k, 0, 0.2 * k, Math.PI * 0.5, Math.PI * 1.5); cx.fill();
+    }
+    cx.restore();
+  }
+  function drawKiller(K, now) {
+    const c = Math.cos(K.face), s = Math.sin(K.face), tp = K.type.id, sc = tp === 2 ? 1.24 : tp === 1 ? 0.94 : 1;
+    const coat = ['#121316', '#2b3236', '#2a1612'][tp], top = ['#23262c', '#414c52', '#4d2a1d'][tp];
+    if (!K.cloak) { const g = cx.createRadialGradient(K.x + c * 1.3, K.y + s * 1.3, 0.2, K.x + c * 1.3, K.y + s * 1.3, 3.8); g.addColorStop(0, 'rgba(225,32,24,0.55)'); g.addColorStop(1, 'rgba(225,32,24,0)'); cx.fillStyle = g; cx.beginPath(); cx.moveTo(K.x, K.y); cx.arc(K.x, K.y, 4.8, K.face - 0.72, K.face + 0.72); cx.closePath(); cx.fill(); }   // the red stain
+    if (K.st === 'charging' || K.st === 'windup') { cx.strokeStyle = 'rgba(230,120,60,0.5)'; cx.lineWidth = 0.14; for (let k = -1; k <= 1; k++) { cx.beginPath(); cx.moveTo(K.x - s * k * 0.4, K.y + c * k * 0.4); cx.lineTo(K.x - s * k * 0.4 - c * (K.st === 'charging' ? 3 : 0.8), K.y + c * k * 0.4 - s * (K.st === 'charging' ? 3 : 0.8)); cx.stroke(); } }
+    cx.save(); cx.translate(K.x, K.y);
+    cx.globalAlpha = K.cloak ? 0.22 + 0.08 * Math.sin(now * 7) : (K.st === 'cloaking' || K.st === 'uncloak') ? 0.6 : 1;
+    cx.fillStyle = 'rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(0.1, 0.18, 0.72 * sc, 0.56 * sc, 0, 0, TAU); cx.fill();
+    if (K.st === 'stun') cx.rotate(Math.sin(now * 20) * 0.25);
+    cx.rotate(K.face); cx.scale(sc, sc);
+    cx.fillStyle = coat; cx.beginPath(); cx.ellipse(-0.08, 0, 0.44, 0.68, 0, 0, TAU); cx.fill();
+    cx.fillStyle = top; cx.beginPath(); cx.ellipse(0, 0, 0.27, 0.62, 0, 0, TAU); cx.fill();
+    cx.strokeStyle = K.st === 'cool' ? '#8c2a22' : '#c3c7ca'; cx.lineWidth = tp === 2 ? 0.16 : 0.1; cx.lineCap = 'round'; cx.beginPath();
+    if (K.st === 'lunge' || K.st === 'charging') { cx.moveTo(0.25, 0.5); cx.lineTo(1.35, 0.18); } else if (K.st === 'cool') { const w = Math.sin(now * 10) * 0.2; cx.moveTo(0.2, 0.55); cx.lineTo(0.8, 0.2 + w); } else { cx.moveTo(0.1, 0.62); cx.lineTo(0.85, 0.74); }
+    cx.stroke();
+    if (tp === 2) { cx.fillStyle = '#6d7275'; cx.fillRect(K.st === 'lunge' || K.st === 'charging' ? 1.15 : 0.7, K.st === 'lunge' || K.st === 'charging' ? 0.0 : 0.56, 0.34, 0.36); }
+    if (K.carry) { cx.fillStyle = shade(K.carry.col, 0.7); cx.beginPath(); cx.ellipse(-0.1, -0.42, 0.5, 0.24, 0.3 + Math.sin(now * 12) * 0.12, 0, TAU); cx.fill(); }
+    cx.fillStyle = tp === 1 ? '#aeb9bd' : tp === 2 ? '#c9a27e' : COL.bone; cx.beginPath(); cx.arc(0.12, 0, tp === 1 ? 0.22 : 0.26, 0, TAU); cx.fill();
+    cx.fillStyle = '#0c0c0e'; cx.fillRect(0.2, -0.15, 0.12, 0.08); cx.fillRect(0.2, 0.07, 0.12, 0.08);
+    cx.restore();
+  }
+  function edgeMark(wx, wy, col, label) {
+    let x = sx(wx), y = sy(wy); const m = 40; if (x > m && x < W - m && y > m && y < H - m) return false;
+    const a = Math.atan2(y - H / 2, x - W / 2); x = clamp(x, m, W - m); y = clamp(y, 78, H - 78);
+    cx.fillStyle = COL.dark + '0.7)'; cx.beginPath(); cx.arc(x, y, 17, 0, TAU); cx.fill(); cx.strokeStyle = col; cx.lineWidth = 2; cx.stroke();
+    cx.fillStyle = col; cx.beginPath(); cx.moveTo(x + Math.cos(a) * 26, y + Math.sin(a) * 26); cx.lineTo(x + Math.cos(a + 0.5) * 18, y + Math.sin(a + 0.5) * 18); cx.lineTo(x + Math.cos(a - 0.5) * 18, y + Math.sin(a - 0.5) * 18); cx.closePath(); cx.fill();
+    txt(label, x, y + 4.5, 12, col, 'center', 700); return true;
+  }
+
+  function draw(dt) {
+    const now = performance.now() / 1000, p = G.surv[G.me | 0], K = G.K;
+    focus = inPlay(p) ? p : (G.surv.find(inPlay) || K);
+    const cr = focus.carrier || K, fx = focus.state === 'carried' ? cr.x : focus.x, fy = focus.state === 'carried' ? cr.y : focus.y;
+    cam.x += (fx - cam.x) * Math.min(1, dt * 8); cam.y += (fy - cam.y) * Math.min(1, dt * 8);
+    cam.x = clamp(cam.x, Math.min(W / 2 / S - 4, WW / 2), Math.max(WW - W / 2 / S + 4, WW / 2)); cam.y = clamp(cam.y, Math.min(H / 2 / S - 4, WH / 2), Math.max(WH - H / 2 / S + 4, WH / 2));
+    const eye = { x: fx, y: fy }; computeVis(eye);
+    const canSee = e => hyp(e.x - fx, e.y - fy) < VR && los(fx, fy, e.x, e.y);
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0); cx.fillStyle = '#07090b'; cx.fillRect(0, 0, W, H);
+    cx.save(); if (shake > 0) { shake -= dt; cx.translate((Math.random() - .5) * 14 * shake, (Math.random() - .5) * 14 * shake); }
+    cx.translate(W / 2, H / 2); cx.scale(S, S); cx.translate(-cam.x, -cam.y);
+    const x0 = Math.max(0, Math.floor((cam.x - W / 2 / S) / T) - 1), x1 = Math.min(MW - 1, Math.floor((cam.x + W / 2 / S) / T) + 1), y0 = Math.max(0, Math.floor((cam.y - H / 2 / S) / T) - 1), y1 = Math.min(MH - 1, Math.floor((cam.y + H / 2 / S) / T) + 1);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) drawTile(tx, ty, now);
+    for (const g of gens) drawGen(g, now);
+    for (const g of gates) { for (let k = 0; k < 3; k++) { const lit = G.powered && (g.open || g.p / GATE_T >= (k + 1) / 3); cx.fillStyle = lit ? COL.amber : G.powered ? '#6b2a22' : '#241d1d'; cx.beginPath(); cx.arc(g.x - g.dir * 0.2, g.y - 1.4 + k * 1.4, 0.16, 0, TAU); cx.fill(); } }
+    if (radio) { cx.fillStyle = '#1c1f20'; cx.fillRect(radio.x - 0.5, radio.y - 0.35, 1, 0.7); cx.fillStyle = '#6d7578'; cx.fillRect(radio.x - 0.38, radio.y - 0.23, 0.76, 0.46); cx.strokeStyle = '#9aa3a6'; cx.lineWidth = 0.06; cx.beginPath(); cx.moveTo(radio.x + 0.35, radio.y - 0.3); cx.lineTo(radio.x + 0.75, radio.y - 1.1); cx.stroke(); cx.fillStyle = radio.done ? '#58d07a' : (G.powered && Math.sin(now * 8) > 0) ? COL.amber : '#3a2a22'; cx.beginPath(); cx.arc(radio.x - 0.2, radio.y, 0.1, 0, TAU); cx.fill(); }
+    if (G.hatch) { cx.fillStyle = '#060607'; cx.fillRect(G.hatch.x - 0.7, G.hatch.y - 0.7, 1.4, 1.4); cx.strokeStyle = 'rgba(190,200,190,0.5)'; cx.lineWidth = 0.08; cx.strokeRect(G.hatch.x - 0.7, G.hatch.y - 0.7, 1.4, 1.4); }
+    // everything that moves is only drawn where the viewer has line of sight
+    cx.save(); cx.beginPath(); cx.moveTo(vpx[0], vpy[0]); for (let i = 1; i < NR; i++) cx.lineTo(vpx[i], vpy[i]); cx.closePath(); cx.clip();
+    for (const m of G.marks) { const a = 1 - (G.t - m.t) / m.life; if (a <= 0) continue; if (m.k === 1) { cx.fillStyle = 'rgba(150,18,14,' + (0.7 * a) + ')'; cx.beginPath(); cx.arc(m.x, m.y, 0.16, 0, TAU); cx.fill(); } else if (m.o === 0) { cx.strokeStyle = 'rgba(214,60,40,' + (0.32 * a) + ')'; cx.lineWidth = 0.07; cx.beginPath(); cx.moveTo(m.x - Math.cos(m.a) * 0.3, m.y - Math.sin(m.a) * 0.3); cx.lineTo(m.x + Math.cos(m.a) * 0.3, m.y + Math.sin(m.a) * 0.3); cx.stroke(); } }
+    for (const s of G.surv) if (s.state === 'free' || s.state === 'hooked') drawSurv(s, now);
+    for (const K of G.Ks) if (!K.dead && (!K.cloak || hyp(K.x - fx, K.y - fy) < 14)) drawKiller(K, now);
+    cx.restore();
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (tiles[ty * MW + tx] === TREE) { const x = tx * T + 1, y = ty * T + 1, h = hash(tx, ty); cx.fillStyle = '#14281b'; cx.beginPath(); cx.arc(x, y, 1.42, 0, TAU); cx.fill(); cx.fillStyle = '#1b3423'; cx.beginPath(); cx.arc(x - 0.4 + h * 0.5, y - 0.35, 0.8, 0, TAU); cx.arc(x + 0.5, y + 0.3 + h * 0.3, 0.6, 0, TAU); cx.fill(); }
+    // darkness outside line of sight
+    cx.fillStyle = COL.dark + '0.8)'; cx.beginPath(); cx.rect(cam.x - W / S, cam.y - H / S, 2 * W / S, 2 * H / S); cx.moveTo(vpx[0], vpy[0]); for (let i = 1; i < NR; i++) cx.lineTo(vpx[i], vpy[i]); cx.closePath(); cx.fill('evenodd');
+    const fg = cx.createRadialGradient(fx, fy, VR * 0.4, fx, fy, VR); fg.addColorStop(0, COL.dark + '0)'); fg.addColorStop(1, COL.dark + '0.55)'); cx.fillStyle = fg; cx.fillRect(cam.x - W / S, cam.y - H / S, 2 * W / S, 2 * H / S);
+    // auras: finished generators glow, hooked and dying friends show through walls (as in the real game)
+    for (const g of gens) if (g.done && MAP.obj.look !== 'crate') { const gg = cx.createRadialGradient(g.x, g.y, 0.2, g.x, g.y, 3.2); gg.addColorStop(0, 'rgba(240,190,90,0.5)'); gg.addColorStop(1, 'rgba(240,190,90,0)'); cx.fillStyle = gg; cx.beginPath(); cx.arc(g.x, g.y, 3.2, 0, TAU); cx.fill(); }
+    for (const s of G.surv) { if (s === focus) continue; const hooked = s.state === 'hooked', dying = s.state === 'free' && s.health === 2; if (!hooked && !dying) continue; cx.strokeStyle = hooked ? 'rgba(235,70,50,' + (0.6 + 0.3 * Math.sin(now * 5)) + ')' : 'rgba(235,150,60,0.8)'; cx.lineWidth = 0.1; cx.beginPath(); cx.arc(s.x, s.y, 0.9 + 0.12 * Math.sin(now * 5), 0, TAU); cx.stroke(); cx.fillStyle = cx.strokeStyle; cx.beginPath(); cx.ellipse(s.x, s.y, 0.3, 0.45, 0, 0, TAU); cx.fill(); }
+    for (const s of G.surv) {
+      if (s.state === 'dead' && s.dx !== undefined && s.fate !== 'taken by the collapse') { const live = G.surv.some(o => o.cls.id === 4 && o.stage < 2 && inPlay(o)); cx.strokeStyle = live ? 'rgba(185,163,230,' + (0.6 + 0.25 * Math.sin(now * 3)) + ')' : 'rgba(150,150,150,0.4)'; cx.lineWidth = 0.12; cx.beginPath(); cx.moveTo(s.dx, s.dy - 0.6); cx.lineTo(s.dx, s.dy + 0.6); cx.moveTo(s.dx - 0.4, s.dy - 0.2); cx.lineTo(s.dx + 0.4, s.dy - 0.2); cx.stroke(); if (live) { cx.beginPath(); cx.arc(s.dx, s.dy, 1.0, 0, TAU); cx.stroke(); } }
+      if (s.decoy && s === p) { cx.strokeStyle = 'rgba(217,210,194,0.5)'; cx.lineWidth = 0.08; cx.setLineDash([0.25, 0.25]); cx.beginPath(); cx.arc(s.decoy.x, s.decoy.y, 0.5, 0, TAU); cx.stroke(); cx.setLineDash([]); }
+      if (s.state === 'free' && s.action && s.action.type === 'aim' && !s.action.ref.dead) { cx.strokeStyle = 'rgba(226,169,59,' + (0.3 + 0.5 * s.action.p / 1.2) + ')'; cx.lineWidth = 0.06; cx.beginPath(); cx.moveTo(s.x, s.y); cx.lineTo(s.action.ref.x, s.action.ref.y); cx.stroke(); }
+      if (s.state === 'free' && s.action && s.action.type === 'revive') { cx.strokeStyle = 'rgba(185,163,230,0.8)'; cx.lineWidth = 0.1; cx.beginPath(); cx.arc(s.action.ref.dx, s.action.ref.dy, 1.3, -Math.PI / 2, -Math.PI / 2 + TAU * s.action.p / 25); cx.stroke(); }
+    }
+    // premonition: the team's shared belief about where the hunter is
+    const SBs = G.SB, team = OPT.prem && inPlay(p);
+    if (team) SBs.trs.forEach((tr, k) => { if (SBs.seenK[k]) return; const m = tr.m; for (let c = 0; c < NC; c++) { const v = m[c]; if (v < 0.006) continue; const cxx = (c % BW) * CELL, cyy = ((c / BW) | 0) * CELL; cx.fillStyle = 'rgba(205,34,26,' + Math.min(0.34, v * 2.4) + ')'; cx.fillRect(cxx, cyy, CELL, CELL); } });
+    if (team) G.Ks.forEach((K, k) => { if (K.dead || !SBs.seenK[k] || canSee(K)) return; cx.strokeStyle = 'rgba(225,40,30,' + (0.5 + 0.3 * Math.sin(now * 8)) + ')'; cx.lineWidth = 0.12; cx.beginPath(); cx.arc(K.x, K.y, 1.1, 0, TAU); cx.stroke(); });
+    cx.restore();
+
+    /* ---------- screen-space layers ---------- */
+    for (const s of G.surv) { if (s === focus) continue; if (s.state === 'hooked') edgeMark(s.x, s.y, '#eb4632', 'H'); else if (s.state === 'free' && s.health === 2) edgeMark(s.x, s.y, '#eb963c', '!'); else if (s.state === 'free' && canSee(s)) { txt(s.name, sx(s.x), sy(s.y) - 0.9 * S, 13, 'rgba(217,210,194,0.8)', 'center'); } }
+    if (p.cls.id === 4 && p.stage < 2 && inPlay(p)) for (const s of G.surv) if (s.state === 'dead' && s.dx !== undefined && s.fate !== 'taken by the collapse') edgeMark(s.dx, s.dy, '#b9a3e6', '+');
+    if (G.powered && radio && !radio.done) edgeMark(radio.x, radio.y, COL.amber, 'R');
+    if (G.powered && !(radio && !radio.done)) for (const g of gates) edgeMark(g.sx, g.sy, g.open ? '#d6e2de' : COL.amber, 'G');
+    if (team) {
+      G.Ks.forEach((K, k) => { if (!K.dead && SBs.seenK[k] && !canSee(K)) edgeMark(K.x, K.y, '#e1281e', 'X'); }); const ki = sbFor(p), tr = SBs.trs[ki], Kp = G.Ks[ki];
+      if (p.state === 'free') {                                          // an arc round you pointing at the best guess; it narrows as the team grows sure
+        let vx = 0, vy = 0; if (SBs.seenK[ki]) { const d = hyp(Kp.x - p.x, Kp.y - p.y) || 1; vx = (Kp.x - p.x) / d; vy = (Kp.y - p.y) / d; } else { const m = tr.m; for (let c = 0; c < NC; c++) { if (m[c] <= 0) continue; const dx = (c % BW + .5) * CELL - p.x, dy = (((c / BW) | 0) + .5) * CELL - p.y, d = hyp(dx, dy) || 1; vx += m[c] * dx / d; vy += m[c] * dy / d; } }
+        const R = clamp(hyp(vx, vy), 0.02, 0.999), spread = clamp(Math.sqrt(-2 * Math.log(R)), 0.1, 2.6), a = Math.atan2(vy, vx);
+        cx.strokeStyle = 'rgba(222,44,34,' + (0.2 + 0.6 * R) + ')'; cx.lineWidth = 4; cx.lineCap = 'round'; cx.beginPath(); cx.arc(sx(p.x), sy(p.y), 2.3 * S, a - spread / 2, a + spread / 2); cx.stroke();
+      }
+    }
+    // heartbeat
+    const band = inPlay(p) ? hbBand(p) : 0;
+    if (band > 0) { hbT -= dt; if (hbT <= 0) { hbT = [0, 1.05, 0.72, 0.46][band]; hbPulse = 1; const v = [0, 0.25, 0.4, 0.6][band]; AU.tone(58, 0.16, 'sine', v); AU.tone(50, 0.2, 'sine', v * 0.8, 0, 0.17); if (G.Ks.some(k => k.chase === p)) AU.noise(0.06, 0.12, 4000, 0.3); } }
+    if (hbPulse > 0) { hbPulse -= dt * 2.4; const g = cx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.72); g.addColorStop(0, 'rgba(150,10,10,0)'); g.addColorStop(1, 'rgba(150,10,10,' + (Math.max(0, hbPulse) * [0, 0.25, 0.4, 0.6][band]) + ')'); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
+    drawHUD(now, p, K);
+  }
+
+  function drawHUD(now, p, K) {
+    // team status, bottom-left stack like the real HUD
+    const nS = G.surv.length, rowH = nS > 6 ? 34 : nS > 4 ? 38 : 44, baseY = H - 150 - nS * rowH;
+    for (let i = 0; i < nS; i++) {
+      const s = G.surv[i], x = 30, y = baseY + i * rowH, dead = s.state === 'dead', esc = s.state === 'escaped';
+      cx.globalAlpha = dead ? 0.45 : 1;
+      cx.fillStyle = COL.dark + '0.55)'; cx.beginPath(); cx.arc(x, y, 17, 0, TAU); cx.fill();
+      cx.fillStyle = dead ? '#444' : s.health === 2 || s.state === 'hooked' ? '#7c1c16' : s.col; cx.beginPath(); cx.arc(x, y, 12, 0, TAU); cx.fill();
+      cx.strokeStyle = COL.bone; cx.lineWidth = 2; cx.lineCap = 'round';
+      if (dead) { cx.beginPath(); cx.moveTo(x - 5, y - 5); cx.lineTo(x + 5, y + 5); cx.moveTo(x + 5, y - 5); cx.lineTo(x - 5, y + 5); cx.stroke(); }
+      else if (esc) { cx.beginPath(); cx.moveTo(x - 5, y); cx.lineTo(x + 5, y); cx.moveTo(x + 1, y - 4); cx.lineTo(x + 5, y); cx.lineTo(x + 1, y + 4); cx.stroke(); }
+      else if (s.state === 'hooked') { cx.beginPath(); cx.moveTo(x, y - 6); cx.lineTo(x, y + 2); cx.arc(x + 3, y + 2, 3, Math.PI, 0, true); cx.stroke(); cx.strokeStyle = '#eb4632'; cx.lineWidth = 3; cx.beginPath(); cx.arc(x, y, 16, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(s.hookT / HOOK_STAGE, 0, 1)); cx.stroke(); }
+      else if (s.health === 2) { cx.beginPath(); cx.moveTo(x - 5, y - 2); cx.lineTo(x, y + 4); cx.lineTo(x + 5, y - 2); cx.stroke(); }
+      else if (s.health === 1) { cx.strokeStyle = '#eb4632'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(x - 7, y + 7); cx.lineTo(x + 7, y - 7); cx.stroke(); }
+      for (let k = 0; k < 2; k++) { cx.fillStyle = s.stage > k ? '#eb4632' : 'rgba(217,210,194,0.25)'; cx.fillRect(x + 22 + k * 9, y + 8, 6, 6); }
+      if (s.cls.guard) { cx.fillStyle = s.guard > 0 ? COL.amber : 'rgba(217,210,194,0.2)'; cx.beginPath(); cx.arc(x + 45, y + 11, 3.5, 0, TAU); cx.fill(); }
+      const act = dead ? s.fate : esc ? 'escaped' : s.state === 'hooked' ? (s.stage > 1 ? 'struggling' : 'hooked') : s.state === 'carried' ? 'carried' : s.health === 2 ? 'dying' : G.Ks.some(k => k.chase === s) ? 'chased' : s.action ? ({ aim: 'aiming', revive: 'raising the dead', radio: 'on the radio', repair: MAP.obj.doing.toLowerCase(), heal: 'healing', unhook: 'unhooking', gate: 'opening gate', selfheal: 'patching up' })[s.action.type] : s.cls.name.toLowerCase();
+      txt(nm(s), x + 22, y + 1, 15, COL.bone, 'left', 600); if (act) txt(act, x + 22 + cx.measureText(nm(s)).width + 7, y + 1, 13, act === 'chased' ? '#eb4632' : COL.mute);
+      cx.globalAlpha = 1;
+    }
+    // objective
+    const left = Math.max(0, GENS_NEEDED - G.gensDone);
+    if (!G.powered) { txt(String(left), 22, H - 34, 46, COL.bone, 'left', 700); txt(left === 1 ? MAP.obj.left1 : MAP.obj.leftN, 54, H - 36, 15, COL.mute); }
+    else txt(gates.some(g => g.open) ? 'The way out is open. Go' : MAP.obj.exit === 'lift' ? (radio && !radio.done ? 'Find the radio and call the lift' : 'The lift arrives in ' + Math.ceil(G.evacT) + ' s. Stay alive') : MAP.obj.exit === 'vault' ? 'Unlock the vault door' : 'Open an exit gate', 22, H - 36, 20, COL.amber, 'left', 600);
+    // endgame collapse
+    if (G.egc >= 0) { const f = G.egc / EGC_T, w = Math.min(420, W * 0.5); cx.fillStyle = COL.dark + '0.6)'; cx.fillRect(W / 2 - w / 2, 58, w, 8); cx.fillStyle = f > 0.35 ? COL.amber : '#eb4632'; cx.fillRect(W / 2 - w / 2, 58, w * f, 8); }
+    G.Ks.forEach((K, k) => { if (!(K.wounds > 0)) return; const y = 30 + k * 22; txt(K.type.name, 18, y, 14, K.dead ? COL.mute : COL.bone, 'left', 600); const w0 = cx.measureText(K.type.name).width; for (let i = 0; i < 4; i++) { cx.fillStyle = i < K.wounds ? '#eb4632' : 'rgba(217,210,194,0.25)'; cx.fillRect(26 + w0 + i * 10, y - 9, 7, 7); } if (K.dead) txt('dead', 72 + w0, y, 13, COL.mute); });   // wounds dealt by a Survivalist
+    // the hunter's eye: how sure it is of where YOU are
+    if (p.state === 'free') { const e = p.eye || 0, x = W / 2, y = 30; cx.strokeStyle = e > 0.6 ? '#eb4632' : 'rgba(217,210,194,0.7)'; cx.lineWidth = 2; cx.beginPath(); cx.ellipse(x, y, 19, 5 + 7 * e, 0, 0, TAU); cx.stroke(); cx.fillStyle = cx.strokeStyle; cx.beginPath(); cx.arc(x, y, 2 + 5 * e, 0, TAU); cx.fill(); txt(Math.round(e * 100) + '% sure of you', x + 28, y + 5, 13, COL.mute); }
+    // toasts
+    const tn = performance.now() / 1000; toasts = toasts.filter(t => tn - t.born < 4); toasts.forEach((t, i) => { cx.globalAlpha = clamp(4 - (tn - t.born), 0, 1); txt(t.t, W / 2, 96 + i * 22 + (inPlay(p) || G.over ? 0 : 50), 16, COL.bone, 'center', 500); cx.globalAlpha = 1; });
+    // progress bar for whatever you are doing
+    let pr = null;
+    if (p.state === 'free' && p.action) { const a = p.action; pr = a.type === 'repair' ? [MAP.obj.doing, a.ref.p / GEN_CHARGES] : a.type === 'heal' ? ['Healing ' + a.ref.name, a.ref.healP / HEAL_T] : a.type === 'aim' ? ['Aiming. Hold still', a.p / 1.2] : a.type === 'revive' ? ['Raising ' + a.ref.name + '. Do not move', a.p / 25] : a.type === 'selfheal' ? ['Patching yourself up', p.healP / HEAL_T] : a.type === 'unhook' ? ['Unhooking', a.p] : a.type === 'radio' ? ['Calling the lift', a.ref.p / MAP.obj.radioT] : [MAP.obj.exit === 'vault' ? 'Unlocking' : 'Opening', a.ref.p / GATE_T]; }
+    else if (p.state === 'free' && p.health === 2) pr = [p.heldT > 0 ? 'A friend is picking you up' : 'Dying. Crawl to a friend', p.healP / HEAL_T];
+    else if (p.state === 'free' && p.heldT > 0) pr = ['Being healed. Stand still', p.healP / HEAL_T];
+    else if (p.state === 'carried') pr = ['Wiggle', p.wig];
+    else if (p.state === 'hooked') pr = [p.stage > 1 ? 'Struggling. Last chance' : 'Hooked. Wait for a rescue', p.hookT / HOOK_STAGE];
+    if (pr) { const w = Math.min(340, W * 0.42), x = W / 2 - w / 2, y = H - 96; txt(pr[0], W / 2, y - 10, 15, COL.bone, 'center', 600); cx.fillStyle = COL.dark + '0.6)'; cx.fillRect(x, y, w, 9); cx.fillStyle = p.state === 'hooked' ? '#eb4632' : COL.bone; cx.fillRect(x, y, w * clamp(pr[1], 0, 1), 9); }
+    // skill check
+    const sc = p.sc;
+    if (sc) {
+      const x = W / 2, y = H / 2 - 130, r = 62, a0 = -Math.PI / 2;
+      cx.fillStyle = COL.dark + '0.5)'; cx.beginPath(); cx.arc(x, y, r + 14, 0, TAU); cx.fill();
+      cx.strokeStyle = 'rgba(217,210,194,0.85)'; cx.lineWidth = 2; cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.stroke();
+      if (sc.phase >= 2) {
+        cx.lineCap = 'butt'; cx.lineWidth = 10; cx.strokeStyle = '#fff'; cx.beginPath(); cx.arc(x, y, r, a0 + sc.a0, a0 + sc.a0 + scGreat()); cx.stroke();
+        cx.lineWidth = 4; cx.strokeStyle = COL.bone; cx.beginPath(); cx.arc(x, y, r + 3, a0 + sc.a0 + scGreat(), a0 + sc.a0 + scGreat() + SC_GOOD); cx.stroke(); cx.beginPath(); cx.arc(x, y, r - 3, a0 + sc.a0 + scGreat(), a0 + sc.a0 + scGreat() + SC_GOOD); cx.stroke();
+        cx.strokeStyle = '#eb2a1e'; cx.lineWidth = 3; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x + Math.cos(a0 + sc.ang) * (r + 8), y + Math.sin(a0 + sc.ang) * (r + 8)); cx.stroke();
+      }
+      if (sc.phase === 3) txt(sc.res === 'great' ? 'Great' : sc.res === 'good' ? 'Good' : 'Missed', x, y + 7, 22, sc.res === 'fail' ? '#eb4632' : '#fff', 'center', 700); else txt('Tap', x, y + r + 34, 15, COL.bone, 'center', 600);
+    }
+    // controls
+    const b = BTN();
+    if (inPlay(p) && !G.autoplay) {
+      ctxBtn = playerContext(p); const scOn = sc && sc.phase === 2, label = scOn ? 'Hit' : ctxBtn ? ctxBtn.label : '';
+      cx.fillStyle = scOn ? 'rgba(179,34,28,0.75)' : ctxBtn ? 'rgba(217,210,194,0.2)' : 'rgba(217,210,194,0.06)'; cx.beginPath(); cx.arc(b.act.x, b.act.y, b.act.r, 0, TAU); cx.fill();
+      cx.strokeStyle = ctxBtn || scOn ? COL.bone : 'rgba(217,210,194,0.25)'; cx.lineWidth = 2.5; cx.stroke();
+      if (label) { txt(label, b.act.x, b.act.y + (ctxBtn && ctxBtn.sub && !scOn ? 0 : 6), label.length > 8 ? 16 : 19, COL.bone, 'center', 700); if (ctxBtn && ctxBtn.sub && !scOn) txt(ctxBtn.sub, b.act.x, b.act.y + 19, 13, COL.mute, 'center'); }
+      if (p.state === 'free' && p.health < 2) { cx.fillStyle = INPUT.crouch ? 'rgba(217,210,194,0.35)' : 'rgba(217,210,194,0.08)'; cx.beginPath(); cx.arc(b.cr.x, b.cr.y, b.cr.r, 0, TAU); cx.fill(); cx.strokeStyle = 'rgba(217,210,194,0.5)'; cx.lineWidth = 2; cx.stroke(); txt('Crouch', b.cr.x, b.cr.y + 5, 14, COL.bone, 'center', 600);
+        const ab = abilityInfo(p); if (ab) { const rdy = ab.ready; cx.fillStyle = rdy ? 'rgba(226,169,59,0.3)' : 'rgba(217,210,194,0.06)'; cx.beginPath(); cx.arc(b.ab.x, b.ab.y, b.ab.r, 0, TAU); cx.fill(); cx.strokeStyle = rdy ? COL.amber : 'rgba(217,210,194,0.3)'; cx.lineWidth = 2; cx.stroke(); if (ab.frac < 1) { cx.strokeStyle = COL.amber; cx.lineWidth = 3; cx.beginPath(); cx.arc(b.ab.x, b.ab.y, b.ab.r, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(ab.frac, 0, 1)); cx.stroke(); } txt(ab.label, b.ab.x, b.ab.y + 5, 14, rdy ? COL.bone : COL.mute, 'center', 600); }
+      }
+      if (joy) { cx.strokeStyle = 'rgba(217,210,194,0.3)'; cx.lineWidth = 2; cx.beginPath(); cx.arc(joy.ox, joy.oy, 58, 0, TAU); cx.stroke(); cx.beginPath(); cx.arc(joy.ox, joy.oy, 58 * 0.78, 0, TAU); cx.setLineDash([4, 6]); cx.stroke(); cx.setLineDash([]); const m = hyp(INPUT.jx, INPUT.jy); cx.fillStyle = m > 0.78 ? 'rgba(214,60,40,0.6)' : 'rgba(217,210,194,0.45)'; cx.beginPath(); cx.arc(joy.ox + INPUT.jx * 58, joy.oy + INPUT.jy * 58, 24, 0, TAU); cx.fill(); }
+    } else if (!G.over) {
+      txt(focus && focus.name ? 'Watching ' + focus.name : 'Watching', W / 2, 80, 15, COL.mute, 'center');
+      cx.fillStyle = 'rgba(217,210,194,0.14)'; cx.fillRect(b.skip.x, b.skip.y, b.skip.w, b.skip.h); cx.strokeStyle = COL.bone; cx.lineWidth = 1.5; cx.strokeRect(b.skip.x, b.skip.y, b.skip.w, b.skip.h); txt(G.ff ? 'Skipping' : 'Skip to the end', W / 2, b.skip.y + 26, 16, COL.bone, 'center', 600);
+    }
+    cx.strokeStyle = 'rgba(217,210,194,0.6)'; cx.lineWidth = 4; cx.lineCap = 'butt'; cx.beginPath(); cx.moveTo(b.pause.x - 5, b.pause.y - 9); cx.lineTo(b.pause.x - 5, b.pause.y + 9); cx.moveTo(b.pause.x + 5, b.pause.y - 9); cx.lineTo(b.pause.x + 5, b.pause.y + 9); cx.stroke();
+  }
+
+  /* ---------------- memory ---------------- */
+  const KEY = 'dead-reckoning-v5';                                        // one small record + one memory per map, kept in this device's browser
+  const lsGet = k => { try { return window.localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } };
+  const sget = k => { try { const v = lsGet(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } };
+  function loadBrain() {
+    BRAIN = newBrain();
+    try { const meta = sget(KEY + '-meta'); if (meta && meta.v === 5) { BRAIN.trials = meta.trials | 0; BRAIN.dreams = meta.dreams | 0; Object.assign(BRAIN.hist, meta.hist || {}); for (let i = 0; i < MAPS.length; i++) decLibs(sget(KEY + '-map' + i), BRAIN.libs[i]); } } catch (e) { }
+    refreshMenu();
+  }
+  function saveBrain(all) { try { lsSet(KEY + '-meta', JSON.stringify({ v: 5, trials: BRAIN.trials, dreams: BRAIN.dreams, hist: BRAIN.hist })); for (let i = 0; i < MAPS.length; i++) if (all || (MAP && i === MAP.id)) lsSet(KEY + '-map' + i, JSON.stringify(encLibs(BRAIN.libs[i]))); } catch (e) { } }
+  const mins = n => n < 60 ? n + ' s' : Math.round(n / 60) + ' min';
+  function refreshMenu() {
+    if (!BRAIN) return; const L = BRAIN.libs[OPT.map];
+    $('mem').textContent = (BRAIN.trials + BRAIN.dreams === 0) ? 'Neither side remembers anything yet. The first trial is the easiest one you will get.' : 'Trials played: ' + BRAIN.trials + (BRAIN.dreams ? ' (plus ' + BRAIN.dreams + ' without you)' : '') + '. On ' + MAPS[OPT.map].name + ' the hunter remembers ' + mins(L[0].n) + ' of your movement and ' + mins(L[1].n) + ' of the others\'. Your team remembers ' + mins(L[2].n) + ' of the hunter\'s.';
+    $('bPrem').textContent = 'Premonition: ' + (OPT.prem ? 'on' : 'off'); $('bSnd').textContent = 'Sound: ' + (OPT.sound ? 'on' : 'off');
+  }
+  function pickers() {
+    const row = (i, on, o) => '<button class="opt' + (on ? ' on' : '') + '" data-i="' + i + '"><b>' + o.name + '</b><span class="pro">' + o.pro + '</span>' + (o.con ? '<span class="con">' + o.con + '</span>' : '') + '</button>';
+    $('pMap').innerHTML = MAPS.map((m, i) => row(i, OPT.map === i, { name: m.name, pro: m.goal })).join('');
+    $('pCls').innerHTML = CLASSES.map((c, i) => row(i, OPT.cls === i, c)).join('');
+    $('pHun').innerHTML = row(-1, OPT.hunter === -1, { name: 'A different one each trial', pro: 'You find out which when the trial starts.' }) + HUNTERS.map((h, i) => row(i, OPT.hunter === i, h)).join('');
+    $('pHiq').innerHTML = HIQ.map((h, i) => row(i, OPT.hiq === i, h)).join('');
+    $('pSiq').innerHTML = SIQ.map((h, i) => row(i, OPT.siq === i, h)).join('');
+    $('pNh').innerHTML = [1, 2, 3].map(n => row(n, OPT.hunters === n, { name: ['', 'One hunter', 'Two hunters', 'Three hunters'][n], pro: n === 1 ? 'The classic trial.' : n === 2 ? 'They share what they see and split up to cover the map. The second is a different type from the first. Objectives need 20% less work to compensate.' : 'One of each type, hunting as a pack. Objectives need 36% less work, and you will still want more survivors.' })).join('');
+    $('pNs').innerHTML = [2, 3, 4, 5, 6, 8].map(n => row(n, OPT.survivors === n, { name: n + ' survivors', pro: n === 4 ? 'The classic team.' : n < 4 ? 'Fewer hands, so each objective is quicker (' + Math.round((0.5 + 0.5 * n / 4) * 100) + '% of the usual work).' : 'More hands, so each objective takes longer (' + Math.round((0.5 + 0.5 * n / 4) * 100) + '% of the usual work).' })).join('');
+    $('sNh').textContent = OPT.hunters; $('sNs').textContent = OPT.survivors;
+    $('sMap').textContent = MAPS[OPT.map].name; $('sCls').textContent = CLASSES[OPT.cls].name; $('sHun').textContent = OPT.hunter < 0 ? 'a different one each trial' : HUNTERS[OPT.hunter].name; $('sHiq').textContent = HIQ[OPT.hiq].name; $('sSiq').textContent = SIQ[OPT.siq].name;
+  }
+  const pickOn = (id, key) => { $(id).onclick = e => { const b = e.target.closest ? e.target.closest('[data-i]') : null; if (!b) return; OPT[key] = +b.dataset.i; pickers(); refreshMenu(); }; };
+  function show(id) { for (const k of ['menu', 'end', 'pause', 'mp']) $(k).classList.toggle('hidden', k !== id); }
+  function setPause(v) { paused = v; $('pause').classList.toggle('hidden', !v); }
+  function startTrial() { AU.init(); newMatch({ players: MP.players(), cls: OPT.cls, hunter: OPT.hunter, map: OPT.map, hiq: OPT.hiq, siq: OPT.siq, hunters: OPT.hunters, survivors: OPT.survivors }); INPUT.jx = INPUT.jy = 0; INPUT.act = false; INPUT.crouch = false; joy = null; toasts = []; endShown = false; paused = false; accT = 0; const p = G.surv[G.me | 0]; cam.x = p.x; cam.y = p.y; toasts.push({ t: MAP.name + '. ' + G.Ks.map(k => k.type.name).join(' and ') + (G.Ks.length > 1 ? ' hunt' : ' hunts') + ' this trial. You are the ' + p.cls.name, born: performance.now() / 1000 + 1.5 }); mode = 'play'; show(null); MP.onStart(); }
+  function dream(n) {
+    mode = 'dream'; let i = 0; $('bDream').disabled = true; $('bPlay').disabled = true; newMatch({ autoplay: true, map: OPT.map, hiq: OPT.hiq, siq: OPT.siq, hunters: OPT.hunters, survivors: OPT.survivors });
+    const tick = () => { let k = 0; while (!G.over && k++ < 900) { step(1 / 30); G.events.length = 0; } $('bDream').textContent = 'Trial ' + (i + 1) + ' of ' + n + ': ' + Math.round(G.t) + ' s in, ' + G.gensDone + ' generators done'; if (G.over) { i++; if (i >= n) { $('bDream').disabled = false; $('bPlay').disabled = false; $('bDream').textContent = 'Let them train without you on this map (3 trials)'; mode = 'menu'; saveBrain(); refreshMenu(); return; } newMatch({ autoplay: true, map: OPT.map, hiq: OPT.hiq, siq: OPT.siq, hunters: OPT.hunters, survivors: OPT.survivors }); } setTimeout(tick, 0); };
+    setTimeout(tick, 30);
+  }
+  function chart(c, series) {
+    const g = c.getContext('2d'), w = c.width, h = c.height, n = Math.max(2, ...series.map(s => s.d.length)), mx = 48, px = i => 84 + (w - 110) * i / (n - 1), py = v => 20 + (h - 44) * (1 - Math.min(v, mx) / mx);
+    g.clearRect(0, 0, w, h); g.font = '24px ' + FH; g.fillStyle = COL.mute; g.strokeStyle = 'rgba(217,210,194,0.12)'; g.lineWidth = 1;
+    for (const v of [0, 16, 32, 48]) { g.beginPath(); g.moveTo(78, py(v)); g.lineTo(w - 12, py(v)); g.stroke(); g.textAlign = 'right'; g.fillText(v + ' m', 68, py(v) + 8); }
+    for (const s of series) { g.strokeStyle = s.c; g.fillStyle = s.c; g.lineWidth = 4; g.beginPath(); let on = false, off = n - s.d.length; s.d.forEach((v, i) => { if (v == null) return; const x = px(i + off), y = py(v); if (on) g.lineTo(x, y); else g.moveTo(x, y); on = true; }); g.stroke(); s.d.forEach((v, i) => { if (v == null) return; g.beginPath(); g.arc(px(i + off), py(v), 6, 0, TAU); g.fill(); }); }
+  }
+  function replayMap(c) {
+    const g = c.getContext('2d'), k = c.width / WW; c.height = Math.round(WH * k); g.fillStyle = '#0c1011'; g.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < N; i++) { const t = tiles[i]; if (t === FLOOR || t === PAL_UP || t === GATE_OPEN) continue; g.fillStyle = t === GEN ? COL.amber : t === HOOK ? '#7c3a2c' : t === WALL || t === TREE || t === ROCK ? '#2c3133' : '#4a4436'; g.fillRect((i % MW) * T * k, ((i / MW) | 0) * T * k, T * k + 0.5, T * k + 0.5); }
+    const R = G.replay; if (R.length < 2) return;
+    g.lineWidth = 2; g.strokeStyle = 'rgba(225,44,34,0.28)'; g.beginPath(); for (const r of R) { g.moveTo(r[0] * k, r[1] * k); g.lineTo(r[2] * k, r[3] * k); } g.stroke();
+    g.fillStyle = 'rgba(225,44,34,0.9)'; for (const r of R) g.fillRect(r[2] * k - 3, r[3] * k - 3, 6, 6);
+    g.strokeStyle = COL.bone; g.lineWidth = 4; g.beginPath(); R.forEach((r, i) => { if (i) g.lineTo(r[0] * k, r[1] * k); else g.moveTo(r[0] * k, r[1] * k); }); g.stroke();
+  }
+  function showEnd() {
+    endShown = true; mode = 'end'; MP.onEnd(); $('bAgain').style.display = ''; const p = G.surv[G.me | 0], r = G.result, H2 = BRAIN.hist;
+    $('eTitle').textContent = p.state === 'escaped' ? (p.fate === 'outlived the hunt' ? 'You outlived the hunt' : 'You escaped') : p.fate === 'bled out' ? 'You bled out' : p.fate === 'taken by the collapse' ? 'The collapse took you' : 'You were sacrificed';
+    $('eSub').textContent = r.esc + ' of ' + G.surv.length + ' got out in ' + Math.floor(r.time / 60) + ' min ' + Math.round(r.time % 60) + ' s. ' + MAP.name + ', ' + G.hiq.name.toLowerCase() + ' hunter, ' + G.siq.name.toLowerCase() + ' team. ' + (G.Ks.length > 1 ? 'The hunters were ' : 'The hunter was ') + G.Ks.map(k => k.type.name).join(' and ') + '; you played the ' + p.cls.name + '.';
+    $('eFates').innerHTML = G.surv.map(s => '<li><i style="background:' + s.col + '"></i>' + nm(s) + ' <span>' + (s.fate || s.state) + '</span></li>').join('');
+    $('eYou').textContent = 'You: ' + Math.round(G.stats.repair / GEN_CHARGES * 100) + '% of one ' + MAP.obj.noun + ' done, ' + G.stats.unhooks + ' unhooks, ' + G.stats.heals + ' heals, ' + G.stats.greats + ' great skill checks, ' + Math.round(G.stats.chase) + ' s chased.';
+    $('eLearn').textContent = (r.you != null ? 'Whenever the hunter could not see you, its best guess at your position was off by ' + r.you + ' m on average, and within 8 m ' + r.youHit + '% of the time. ' : '') + (r.s != null ? 'Your team\'s guess at the hunter was off by ' + r.s + ' m.' : '') + ' This trial is now part of both memories.';
+    chart($('eChart'), [{ d: H2.h, c: 'rgba(225,44,34,0.45)' }, { d: H2.s, c: '#6f9dbd' }, { d: H2.you, c: COL.bone }]);
+    replayMap($('eMap')); show('end'); saveBrain(); refreshMenu();
+  }
+  $('bPlay').onclick = startTrial; $('bAgain').onclick = startTrial;
+  $('bMenu').onclick = () => { if (G && G.net === 'client') { MP.leave(); return; } mode = 'menu'; show('menu'); refreshMenu(); };
+  $('bDream').onclick = () => dream(3);
+  $('bPrem').onclick = () => { OPT.prem = !OPT.prem; refreshMenu(); }; $('bSnd').onclick = () => { OPT.sound = !OPT.sound; AU.init(); refreshMenu(); };
+  $('bWipe').onclick = () => { if ($('bWipe').dataset.sure) { BRAIN = newBrain(); saveBrain(true); refreshMenu(); delete $('bWipe').dataset.sure; $('bWipe').textContent = 'Wipe both memories'; } else { $('bWipe').dataset.sure = '1'; $('bWipe').textContent = 'Tap again to wipe everything they have learned'; } };
+  $('bResume').onclick = () => setPause(false); $('bQuit').onclick = () => { if (G && G.net === 'client') MP.leave(); setPause(false); mode = 'menu'; show('menu'); refreshMenu(); };
+
+
+  /* ---------------- playing with friends ----------------
+     The host's device runs the whole trial. Friends send their thumbs (stick, buttons) about 20 times a second and get back
+     a small picture of the world about 12 times a second, which their device draws exactly as the host's does.
+     The link between devices is a direct WebRTC data channel. To find each other they need a meeting point:
+       - inside Claude: the artifact's shared storage (works only when everyone opens the same published copy);
+       - on a web address: the free public PeerJS service. */
+  const MP = (() => {
+    const QRLIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', PEERLIB = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js';
+    const KV = window.__kv || (window.storage ? { set: (k, v) => window.storage.set(k, v, true), get: async k => { try { const r = await window.storage.get(k, true); return r ? r.value : null; } catch (e) { return null; } }, list: async p => { try { const r = await window.storage.list(p, true); return r && r.keys ? r.keys : []; } catch (e) { return []; } } } : null);
+    const hosted = /^https?:$/.test(location.protocol), cfg = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const STN = ['free', 'hooked', 'carried', 'dead', 'escaped'], AT = [null, 'repair', 'heal', 'unhook', 'gate', 'radio', 'aim', 'revive', 'selfheal'];
+    const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
+    let role = null, code = '', peers = [], hostConn = null, peer = null, timer = null, seenOffers = {}, snapT = 0, inT = 0, evq = [], lastMarkT = 0, premN = 0, cntA = 0, cntB = 0, myName = '', lobby = [], lastSnap = 0;
+    const say = t => { $('mpStatus').textContent = t || ''; };
+    const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('load')); document.head.appendChild(el); });
+    const waitIce = (pc, ms) => new Promise(res => { if (pc.iceGatheringState === 'complete') return res(); const t = setTimeout(res, ms); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
+    function wrap(ch, isPeerJS) {
+      const c = { onmsg: null, onclose: null, send: o => { try { ch.send(JSON.stringify(o)); } catch (e) { } }, close: () => { try { ch.close(); } catch (e) { } } };
+      const got = d => { try { if (c.onmsg) c.onmsg(typeof d === 'string' ? JSON.parse(d) : d); } catch (e) { console.error(e); } };
+      if (isPeerJS) { ch.on('data', got); ch.on('close', () => c.onclose && c.onclose()); } else { ch.onmessage = e => got(e.data); ch.onclose = () => c.onclose && c.onclose(); }
+      return c;
+    }
+    function leave() {
+      for (const p of peers) p.conn.close(); peers = []; if (hostConn) hostConn.close(); hostConn = null; if (peer) { try { peer.destroy(); } catch (e) { } } peer = null; clearTimeout(timer); role = null; seenOffers = {};
+      if (G && G.net === 'client') { G = null; mode = 'menu'; show('menu'); }
+      ui();
+    }
+    /* ----- host ----- */
+    async function host(name) {
+      leave(); role = 'host'; myName = name || 'Host'; code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[(Math.random() * 24) | 0]).join(''); ui();
+      try {
+        if (KV) { const poll = async () => { if (role !== 'host') return; try { const keys = await KV.list('mp:o:' + code + ':'); for (const k of keys) { if (seenOffers[k]) continue; seenOffers[k] = 1; const v = await KV.get(k); if (v) accept(k.split(':')[3], JSON.parse(v)); } } catch (e) { } timer = setTimeout(poll, mode === 'play' ? 7000 : 2000); }; poll(); say('Waiting for friends to join.'); }
+        else if (hosted) { say('Opening the room.'); await loadScript(PEERLIB); peer = new Peer('deadreck-' + code); peer.on('open', () => say('Waiting for friends to join.')); peer.on('connection', c => c.on('open', () => addPeer(wrap(c, true)))); peer.on('error', e => say('Connection service problem: ' + (e.type || e))); }
+        else say('This copy was opened from a file, so other devices cannot reach it. Open it from a web address or as a published Claude artifact.');
+      } catch (e) { say('Could not open a room: ' + e.message); }
+      qr();
+    }
+    async function accept(cid, offer) { try { const pc = new RTCPeerConnection(cfg); pc.ondatachannel = e => { const ch = e.channel; ch.onopen = () => addPeer(wrap(ch, false)); }; await pc.setRemoteDescription(offer); await pc.setLocalDescription(await pc.createAnswer()); await waitIce(pc, 2500); await KV.set('mp:a:' + code + ':' + cid, JSON.stringify(pc.localDescription)); } catch (e) { say('A friend tried to join but the link failed: ' + e.message); } }
+    function addPeer(conn) {
+      if (peers.length >= 7) { conn.send({ t: 'full' }); return; }
+      const p = { conn, name: 'Guest', cls: 0, si: -1, a: 0, b: 0, inp: { jx: 0, jy: 0, crouch: false, act: false, ab: false } }; peers.push(p);
+      conn.onmsg = m => { if (m.t === 'hello') { p.name = String(m.name || 'Guest').slice(0, 12); p.cls = m.cls | 0; tell(); } else if (m.t === 'i') { p.last = performance.now(); p.inp.jx = +m.x || 0; p.inp.jy = +m.y || 0; p.inp.crouch = !!m.c; if (m.a !== p.a) { p.a = m.a; p.inp.act = true; } if (m.b !== p.b) { p.b = m.b; p.inp.ab = true; } } };
+      conn.onclose = () => { peers = peers.filter(q => q !== p); if (G && G.net !== 'client' && p.si >= 0 && G.surv[p.si]) G.surv[p.si].human = false; tell(); };   // a friend who drops out is replaced by a bot
+      tell();
+    }
+    function tell() { lobby = [myName + ' (host)'].concat(peers.map(p => p.name + ', ' + CLASSES[p.cls].name)); for (const p of peers) p.conn.send({ t: 'lobby', names: lobby }); ui(); }
+    const players = () => (role === 'host' && peers.length) ? [{ cls: OPT.cls, name: myName, inp: INPUT }].concat(peers.map(p => ({ cls: p.cls, name: p.name, inp: p.inp }))) : undefined;
+    function onStart() {
+      if (role !== 'host') return; evq = []; lastMarkT = 0;
+      peers.forEach((p, i) => { p.si = i + 1; p.last = performance.now(); p.inp.act = p.inp.ab = false; p.conn.send({ t: 'start', map: MAP.id, nS: G.surv.length, nH: G.Ks.length, cls: G.surv.map(s => s.cls.id), names: G.surv.map(s => s.name), hum: G.surv.map(s => s.human ? 1 : 0), types: G.Ks.map(k => k.type.id), ch: GEN_CHARGES, has: gens.map(g => g.has ? 1 : 0), me: p.si, hiq: OPT.hiq, siq: OPT.siq }); });
+    }
+    function ev(e) { if (role === 'host' && peers.length && evq.length < 80) evq.push({ y: e.type, x: e.x, Y: e.y, s: e.s ? e.s.id : -1, k: e.K ? e.K.idx : -1, f: e.fast ? 1 : 0 }); }
+    function hostFrame(dt) {
+      if (role !== 'host' || !peers.length || !G || G.net === 'client') return; snapT += dt; if (snapT < 0.08) return; snapT = 0;
+      if (mode === 'play' && !G.over) for (const p of peers.slice()) if (p.si >= 0 && performance.now() - (p.last || 0) > 5000) { p.conn.close(); if (p.conn.onclose) p.conn.onclose(); }   // silent for 5 s: treat as gone
+      if (!peers.length) return;
+      const A = a => a ? [AT.indexOf(a.type), a.type === 'aim' ? a.ref.idx : (a.ref && a.ref.id !== undefined ? a.ref.id : 0), r2(a.p || 0)] : 0;
+      const m = { t: 's', T: r2(G.t),
+        S: G.surv.map(s => [r2(s.x), r2(s.y), r2(s.face), STN.indexOf(s.state), s.health, s.stage, r1(s.hookT), (s.crouch ? 1 : 0) | (s.moving ? 2 : 0) | (s.endT > 0 ? 4 : 0) | (s.heldT > 0 ? 8 : 0) | (G.sees[s.id] ? 16 : 0) | (s.human ? 32 : 0), A(s.action), r1(s.healP), r2(s.wig), s.guard, r1(Math.max(0, s.abT)), s.carrier ? s.carrier.idx : -1, s.fate, s.tries, s.decoy ? [r1(s.decoy.x), r1(s.decoy.y)] : 0, s.dx !== undefined ? [r1(s.dx), r1(s.dy)] : 0]),
+        K: G.Ks.map(k => [r2(k.x), r2(k.y), r2(k.face), k.st, k.cloak ? 1 : 0, k.carry ? k.carry.id : -1, k.wounds || 0, k.dead ? 1 : 0, k.chase ? k.chase.id : -1]),
+        g: gens.map(g => [r1(g.p), (g.done ? 1 : 0) | (g.regress ? 2 : 0), g.users, r1(g.boomT)]), p: pallets.map(p => p.state[0]).join(''), G: gates.map(g => [r1(g.p), g.open ? 1 : 0]), h: hooks.map(h => h.broken ? 1 : 0).join(''),
+        r: radio ? [r1(radio.p), radio.done ? 1 : 0] : 0, H: G.hatch ? [G.hatch.x, G.hatch.y] : 0, o: [G.gensDone, G.powered ? 1 : 0, r1(G.egc), r1(G.evacT)],
+        e: evq, m: G.marks.filter(q => q.t > lastMarkT).map(q => [r1(q.x), r1(q.y), r2(q.t), q.o, q.k, r1(q.a), q.life]),
+        sk: G.SB.seenK.map(v => v ? 1 : 0), se: G.SB.trs.map(t => [r1(t.est.x), r1(t.est.y), r2(t.est.conf)]) };
+      if (++premN % 4 === 0) m.pm = G.SB.trs.map(t => { const o = []; for (let c = 0; c < NC; c++) if (t.m[c] > 0.006) o.push(c, Math.round(t.m[c] * 100)); return o; });
+      lastMarkT = G.t; evq = [];
+      for (const p of peers) { const s = G.surv[p.si]; if (!s) continue; m.me = [s.sc ? [s.sc.phase, r2(s.sc.a0), r2(s.sc.ang), s.sc.res, s.sc.type === 'repair' ? 1 : 0] : 0, r2(s.eye || 0)]; p.conn.send(m); }
+    }
+    function onEnd() { if (role !== 'host') return; for (const p of peers) p.conn.send({ t: 'end', esc: G.result.esc, n: G.surv.length, time: G.result.time, st: G.surv.map(s => [STN.indexOf(s.state), s.fate]) }); }
+    /* ----- friend ----- */
+    async function join(c, name, cls) {
+      leave(); role = 'client'; code = String(c || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4); myName = name || 'Guest'; ui();
+      if (code.length < 4) { say('Enter the four letters shown on the host\'s screen.'); role = null; ui(); return; }
+      const ready = conn => { hostConn = conn; conn.onmsg = clientMsg; conn.onclose = () => { if (role === 'client') { say('The connection to the host was lost.'); role = null; hostConn = null; if (G && G.net === 'client') { G = null; mode = 'menu'; } show('mp'); ui(); } }; conn.send({ t: 'hello', name: myName, cls: cls | 0 }); say('Connected. Waiting for the host to start the trial.'); ui(); };
+      try {
+        if (KV) {
+          say('Reaching the host.'); const pc = new RTCPeerConnection(cfg), ch = pc.createDataChannel('g'), cid = Math.random().toString(36).slice(2, 10); ch.onopen = () => ready(wrap(ch, false));
+          await pc.setLocalDescription(await pc.createOffer()); await waitIce(pc, 2500); await KV.set('mp:o:' + code + ':' + cid, JSON.stringify(pc.localDescription));
+          let tries = 0; const poll = async () => { if (role !== 'client' || hostConn) return; const v = await KV.get('mp:a:' + code + ':' + cid); if (v) { try { await pc.setRemoteDescription(JSON.parse(v)); } catch (e) { say('The link failed: ' + e.message); } return; } if (tries++ > 25) { say('No answer. Check the code, and that the host still has the room open.'); role = null; ui(); return; } timer = setTimeout(poll, 1500); }; poll();
+        } else if (hosted) { say('Reaching the host.'); await loadScript(PEERLIB); peer = new Peer(); peer.on('open', () => { const c2 = peer.connect('deadreck-' + code, { reliable: true }); c2.on('open', () => ready(wrap(c2, true))); }); peer.on('error', e => { say(e.type === 'peer-unavailable' ? 'No room with that code is open.' : 'Connection service problem: ' + (e.type || e)); role = null; ui(); }); }
+        else { say('This copy was opened from a file, so it cannot reach other devices.'); role = null; ui(); }
+      } catch (e) { say('Could not join: ' + e.message); role = null; ui(); }
+    }
+    function clientMsg(m) {
+      if (m.t === 'lobby') { lobby = m.names; ui(); }
+      else if (m.t === 'full') say('That room is full.');
+      else if (m.t === 'start') {
+        AU.init(); lastSnap = performance.now(); newMatch({ map: m.map, survivors: m.nS, hunters: m.nH, hiq: m.hiq, siq: m.siq }); G.net = 'client'; G.me = m.me; GEN_CHARGES = m.ch;
+        G.surv.forEach((s, i) => { s.cls = CLASSES[m.cls[i]]; s.name = m.names[i]; s.human = !!m.hum[i]; s.isPlayer = false; s.tx = s.x; s.ty = s.y; s.guard = s.cls.guard || 0; });
+        G.Ks.forEach((k, i) => { k.type = HUNTERS[m.types[i]]; k.tr = k.type.tr; k.tx = k.x; k.ty = k.y; }); gens.forEach((g, i) => { g.has = !!m.has[i]; });
+        INPUT.jx = INPUT.jy = 0; INPUT.act = INPUT.ab = false; INPUT.crouch = false; joy = null; toasts = []; endShown = false; paused = false; const p = G.surv[G.me]; cam.x = p.x; cam.y = p.y;
+        toasts.push({ t: MAP.name + '. ' + G.Ks.map(k => k.type.name).join(' and ') + (G.Ks.length > 1 ? ' hunt' : ' hunts') + ' this trial. You are the ' + p.cls.name, born: performance.now() / 1000 + 1.5 }); mode = 'play'; show(null);
+      }
+      else if (m.t === 's' && G && G.net === 'client') apply(m);
+      else if (m.t === 'end' && G && G.net === 'client') { m.st.forEach((a, i) => { G.surv[i].state = STN[a[0]]; G.surv[i].fate = a[1]; }); G.over = true; endClient(m); }
+    }
+    function apply(m) {
+      lastSnap = performance.now(); G.t = m.T;
+      m.S.forEach((a, i) => {
+        const s = G.surv[i]; if (!s) return; const st = STN[a[3]]; s.tx = a[0]; s.ty = a[1]; if (st !== s.state || hyp(s.tx - s.x, s.ty - s.y) > 5) { s.x = s.tx; s.y = s.ty; }
+        s.face = a[2]; s.state = st; s.health = a[4]; s.stage = a[5]; s.hookT = a[6]; const f = a[7]; s.crouch = !!(f & 1); s.moving = !!(f & 2); s.endT = f & 4 ? 1 : 0; s.heldT = f & 8 ? 0.3 : 0; G.sees[i] = !!(f & 16); s.human = !!(f & 32);
+        const A = a[8]; s.action = A ? { type: AT[A[0]], p: A[2], ref: A[0] === 1 ? gens[A[1]] : (A[0] === 2 || A[0] === 3 || A[0] === 7) ? G.surv[A[1]] : A[0] === 4 ? gates[A[1]] : A[0] === 5 ? radio : A[0] === 6 ? G.Ks[A[1]] : s } : null;
+        s.healP = a[9]; s.wig = a[10]; s.guard = a[11]; s.abT = a[12]; s.carrier = a[13] >= 0 ? G.Ks[a[13]] : null; s.fate = a[14]; s.tries = a[15]; s.decoy = a[16] ? { x: a[16][0], y: a[16][1], t: G.t } : null; if (a[17]) { s.dx = a[17][0]; s.dy = a[17][1]; }
+        s.hook = st === 'hooked' ? { x: s.tx, y: s.ty } : null;
+      });
+      m.K.forEach((a, i) => { const k = G.Ks[i]; if (!k) return; k.tx = a[0]; k.ty = a[1]; if (hyp(k.tx - k.x, k.ty - k.y) > 6) { k.x = k.tx; k.y = k.ty; } k.face = a[2]; k.st = a[3]; k.cloak = !!a[4]; k.carry = a[5] >= 0 ? G.surv[a[5]] : null; k.wounds = a[6]; k.dead = !!a[7]; k.chase = a[8] >= 0 ? G.surv[a[8]] : null; });
+      m.g.forEach((a, i) => { const g = gens[i]; if (!g) return; g.p = a[0]; g.done = !!(a[1] & 1); g.regress = !!(a[1] & 2); g.users = a[2]; g.boomT = a[3]; });
+      for (let i = 0; i < m.p.length && i < pallets.length; i++) { const p = pallets[i], st = m.p[i] === 'u' ? 'up' : m.p[i] === 'd' ? 'down' : 'gone'; if (p.state !== st) { p.state = st; tiles[p.n] = st === 'up' ? PAL_UP : st === 'down' ? PAL_DN : FLOOR; } }
+      m.G.forEach((a, i) => { const g = gates[i]; if (!g) return; g.p = a[0]; if (a[1] && !g.open) { g.open = true; for (const n of g.tiles) tiles[n] = GATE_OPEN; } });
+      for (let i = 0; i < m.h.length && i < hooks.length; i++) hooks[i].broken = m.h[i] === '1';
+      if (m.r && radio) { radio.p = m.r[0]; radio.done = !!m.r[1]; }
+      G.hatch = m.H ? { x: m.H[0], y: m.H[1] } : null; G.gensDone = m.o[0]; G.powered = !!m.o[1]; G.egc = m.o[2]; G.evacT = m.o[3];
+      for (const a of m.m) G.marks.push({ x: a[0], y: a[1], t: a[2], o: a[3], k: a[4], a: a[5], life: a[6] }); while (G.marks.length && G.t - G.marks[0].t > MARK_LIFE * 1.5) G.marks.shift();
+      m.sk.forEach((v, i) => { G.SB.seenK[i] = !!v; }); m.se.forEach((a, i) => { const e = G.SB.trs[i].est; e.x = a[0]; e.y = a[1]; e.conf = a[2]; });
+      if (m.pm) m.pm.forEach((o, i) => { const mm = G.SB.trs[i].m; mm.fill(0); for (let j = 0; j < o.length; j += 2) mm[o[j]] = o[j + 1] / 100; });
+      const me = G.surv[G.me]; me.sc = m.me[0] ? { phase: m.me[0][0], a0: m.me[0][1], ang: m.me[0][2], res: m.me[0][3], type: m.me[0][4] ? 'repair' : 'heal', t: 0.5 } : null; me.eye = m.me[1];
+      for (const q of m.e) G.events.push({ type: q.y, x: q.x, y: q.Y, s: q.s >= 0 ? G.surv[q.s] : undefined, K: q.k >= 0 ? G.Ks[q.k] : undefined, fast: !!q.f, t: G.t });
+      handleEvents(false);
+    }
+    function clientFrame(dt) {
+      if (hostConn && performance.now() - lastSnap > 8000 && !G.over) { const c = hostConn; c.close(); if (c.onclose) c.onclose(); return; }
+      G.t += dt; const k = Math.min(1, dt * 16);
+      for (const s of G.surv) if (s.tx !== undefined) { s.x += (s.tx - s.x) * k; s.y += (s.ty - s.y) * k; }
+      for (const q of G.Ks) if (q.tx !== undefined) { q.x += (q.tx - q.x) * k; q.y += (q.ty - q.y) * k; }
+      const me = G.surv[G.me]; if (me.sc && me.sc.phase === 2) me.sc.ang += TAU / 1.2 * dt;
+      if (INPUT.act) { INPUT.act = false; cntA++; } if (INPUT.ab) { INPUT.ab = false; cntB++; }
+      inT += dt; if (inT >= 0.05 && hostConn) { inT = 0; hostConn.send({ t: 'i', x: r2(INPUT.jx), y: r2(INPUT.jy), c: INPUT.crouch ? 1 : 0, a: cntA, b: cntB }); }
+    }
+    function endClient(m) {
+      endShown = true; mode = 'end'; const p = G.surv[G.me];
+      $('eTitle').textContent = p.state === 'escaped' ? (p.fate === 'outlived the hunt' ? 'You outlived the hunt' : 'You escaped') : p.fate === 'bled out' ? 'You bled out' : p.fate === 'taken by the collapse' ? 'The collapse took you' : 'You were sacrificed';
+      $('eSub').textContent = m.esc + ' of ' + m.n + ' got out in ' + Math.floor(m.time / 60) + ' min ' + Math.round(m.time % 60) + ' s. ' + MAP.name + '.';
+      $('eFates').innerHTML = G.surv.map(s => '<li><i style="background:' + s.col + '"></i>' + nm(s) + ' <span>' + (s.fate || s.state) + '</span></li>').join('');
+      $('eYou').textContent = ''; $('eLearn').textContent = 'What the hunter learned from this trial stays on the host\'s device. The next trial starts when the host starts it.';
+      for (const id of ['eChart', 'eMap']) { const c = $(id); c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+      $('bAgain').style.display = 'none'; show('end');
+    }
+    /* ----- lobby screen ----- */
+    async function qr() {
+      const cv2 = $('mpQR'), g = cv2.getContext('2d'); g.fillStyle = '#d9d2c2'; g.fillRect(0, 0, cv2.width, cv2.height);
+      const link = hosted && !KV ? location.href.split('#')[0] + '#join=' + code : ($('mpLink').value || '').trim();
+      $('mpQRNote').textContent = hosted && !KV ? 'Friends point their camera at this. It opens the game and joins your room.' : link ? 'Friends point their camera at this to open the game, then tap Play with friends, Join, and enter ' + code + '.' : 'Paste the public link to this game below and the code will take friends straight to it. Without it, they open the same published game themselves and enter ' + code + '.';
+      if (!link) { g.fillStyle = '#07090b'; g.font = '600 64px ' + FH; g.textAlign = 'center'; g.fillText(code, cv2.width / 2, cv2.height / 2 + 22); return; }
+      try { if (!window.qrcode) await loadScript(QRLIB); const q = window.qrcode(0, 'M'); q.addData(link); q.make(); const n = q.getModuleCount(), sz = Math.floor((cv2.width - 24) / n), off = (cv2.width - sz * n) / 2; g.fillStyle = '#07090b'; for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(off + c * sz, off + r * sz, sz, sz); }
+      catch (e) { g.fillStyle = '#07090b'; g.font = '600 20px ' + FH; g.textAlign = 'center'; g.fillText('Could not draw the code.', cv2.width / 2, 120); g.fillText('Share the link instead.', cv2.width / 2, 150); }
+    }
+    function ui() {
+      if (!$('mp')) return;
+      $('mpChoose').classList.toggle('hidden', !!role); $('mpHostBox').classList.toggle('hidden', role !== 'host'); $('mpJoinBox').classList.toggle('hidden', role !== 'client' && role !== 'joining');
+      $('mpCode').textContent = code; $('mpLinkFld').classList.toggle('hidden', hosted && !KV);
+      $('mpList').innerHTML = (role ? lobby : []).map(n => '<li>' + String(n).replace(/[<>&]/g, '') + '</li>').join('');
+      $('mpNote').textContent = KV ? 'Everyone has to open the same published copy of this game. The host\'s device runs the trial; up to 7 friends can join.' : hosted ? 'The host\'s device runs the trial; up to 7 friends can join by scanning the code.' : 'Playing with friends needs this game to be opened from a web address or as a published Claude artifact.';
+      $('bMP').textContent = role === 'host' ? 'Play with friends (room ' + code + ', ' + peers.length + ' joined)' : 'Play with friends';
+    }
+    function open() { show('mp'); ui(); if (!$('mpName').value) $('mpName').value = myName || ''; const h = /join=([A-Za-z]{4})/.exec(location.hash || ''); if (h && !role) { $('mpJoinCode').value = h[1].toUpperCase(); role = 'joining'; ui(); } }
+    function wire() {
+      $('bMP').onclick = open; $('mpBack').onclick = () => { if (role === 'joining') role = null; show('menu'); refreshMenu(); ui(); };
+      $('mpHost').onclick = () => { lobby = []; host(($('mpName').value || 'Host').trim()).then(tell); };
+      $('mpJoin').onclick = () => { role = 'joining'; ui(); say(''); };
+      $('mpJoinGo').onclick = () => join($('mpJoinCode').value, ($('mpName').value || 'Guest').trim(), OPT.cls);
+      $('mpStart').onclick = () => startTrial(); $('mpClose').onclick = () => { leave(); say(''); };
+      $('mpLink').onchange = () => { qr(); try { if (window.storage) window.storage.set('dr-link', $('mpLink').value, false); } catch (e) { } };
+      (async () => { try { if (window.storage) { const r = await window.storage.get('dr-link', false); if (r && r.value) $('mpLink').value = r.value; } } catch (e) { } })();
+      if (/join=[A-Za-z]{4}/.test(location.hash || '')) setTimeout(open, 300);
+    }
+    return { host, join, leave, players, onStart, onEnd, ev, hostFrame, clientFrame, wire, active: () => role === 'host' && peers.length > 0, info: () => ({ role, code, peers: peers.length, lobby }) };
+  })();
+
+  function frame(ts) {
+    requestAnimationFrame(frame); const dt = Math.min(0.1, (ts - lastTs) / 1000 || 0); lastTs = ts;
+    if (mode !== 'play' || !G) return;
+    if (G.net === 'client') MP.clientFrame(dt);
+    else if (!paused || MP.active()) {
+      if (G.ff) { for (let i = 0; i < 60 && !G.over; i++) { step(1 / 30); handleEvents(true); } }
+      else { accT += dt; let k = 0; while (accT >= 1 / 30 && k++ < 4) { step(1 / 30); accT -= 1 / 30; handleEvents(false); } if (k >= 4) accT = 0; }
+    }
+    MP.hostFrame(dt);
+    draw(dt);
+    if (G.net !== 'client' && G.over && !endShown && (G.ff || G.overT > 2.2)) showEnd();
+  }
+  pickOn('pMap', 'map'); pickOn('pCls', 'cls'); pickOn('pHun', 'hunter'); pickOn('pHiq', 'hiq'); pickOn('pSiq', 'siq'); pickOn('pNh', 'hunters'); pickOn('pNs', 'survivors'); pickers();
+  MP.wire();
+  resize(); show('menu'); loadBrain(); requestAnimationFrame(frame);
+  window.__dr = { mp: MP, start: startTrial, state: () => ({ mode, paused }), press };
+})();
+
+</script>
+</body>
+</html>
